@@ -1,5 +1,7 @@
 {
   "language": "en",
+  "mode": "review",
+  "fixMinSeverity": "low",
   "reports": "docs/scans",
   "reportFormat": "html",
   "reportName": "scan-{type}-{YYYYMMDD}.{ext}",

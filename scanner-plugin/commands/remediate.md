@@ -1,6 +1,6 @@
 ---
-description: Fix one finding of a scan in an isolated worktree, following the profile's remediation guidance
-argument-hint: <run> <finding-id>
+description: Fix one or several findings of a scan on a new fix branch, in an isolated worktree, following the profile's remediation guidance
+argument-hint: <run> <F3 | F1,F4 | high | >=medium | all>
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent
 ---
 
@@ -8,24 +8,34 @@ allowed-tools: Bash(node:*), Bash(git:*), Read, Agent
 
 The script: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scanner.mjs"` (below: `SCANNER`).
 
+A **selection** is one or more tokens separated by commas or spaces: an id (`F3`), a severity
+(`high`), a severity and above (`>=medium` or `medium+`), `all` (every finding down to
+`fixMinSeverity`, `low` by default) or `none`.
+
 1. Without arguments: list the directories of `.scanner/runs/` that contain a `final.json`,
-   with their counts, and stop. With a run only: list its findings (id, severity, title,
-   `file:line`) and stop.
-2. `SCANNER guard remediate <run> <id>` — arms the remediation guard and prints the finding.
-   The guard now refuses writes to the paths denied by `.scanner/config.json`, its denied
-   commands, and any commit or push on a protected branch.
-3. Choose `BRANCH`: `<branchPrefix from the config, default fix/><slug of the title>`, and
-   `BASE_BRANCH`: `remediationBase` from the config (default: the current branch).
-4. Launch a `scanner:remediator` agent **with `isolation: "worktree"`** — the user's working
-   tree must not switch branches under their feet:
+   with their counts, and stop. With a run only: `SCANNER select <run>` and stop.
+2. `SCANNER fix <run> <selection>` — creates **one fix branch for the run**
+   (`<branchPrefix>scan-<type>-<date>`, suffixed if it exists) from `remediationBase` (default:
+   the current branch), in a worktree under `.scanner/worktrees/<run>` — the user's working
+   tree does not switch branches — and arms the remediation guard: denied paths and
+   commands from `.scanner/config.json`, no commit or push on a protected branch. Note
+   `BRANCH=`, `WORKTREE=` and `FINDINGS=`. If it fails, show the error and stop.
+3. For each id of `FINDINGS=`, **one after the other** — they commit on the same branch —
+   launch a `scanner:remediator` agent (**without** `isolation`: the worktree already exists):
 
    ```
-   FINDING=<the JSON printed at step 2>
-   PROFILE=<absolute path of .scanner/runs/<run>/profile.json>
-   BASE_BRANCH=<…>
-   BRANCH=<…>
+   RUN_DIR=<absolute path of .scanner/runs/<run>>
+   FINDING_ID=<F…>
+   WORKTREE=<the WORKTREE= value>
+   BRANCH=<the BRANCH= value>
    ```
 
-5. `SCANNER guard off` — **always**, even if the agent failed.
-6. Relay the agent's account, in the profile's language (`language` in `profile.json`): branch, commit, checks, what could not be verified, and the
-   worktree path. **Do not push and do not open a pull request**: only offer to.
+   Wait for each before launching the next. A failed or declined finding does not stop the
+   others.
+4. `SCANNER fix-status <run>` — per finding: fixed, not fixed (and why), failed, not
+   reached; commits on the branch.
+5. `SCANNER guard off` — **always**, even if an agent failed.
+6. Relay, in the profile's language (`language` in `profile.json`): the branch, the
+   `fix-status` lines, what could not be verified, and the worktree path (to remove it once
+   merged: `git worktree remove <path>`). **Do not push and do not open a pull request**:
+   only offer to.

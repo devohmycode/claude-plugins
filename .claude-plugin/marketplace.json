@@ -12,7 +12,7 @@
       "name": "scanner",
       "source": "./scanner-plugin",
       "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "author": {
         "name": "DevOhMyCode"
       },

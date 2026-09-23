@@ -116,7 +116,11 @@ function duringRemediation(state, root, tool, input, cwd) {
         deny(t('remCommand', { finding: state.finding, source }))
     if (/\bgit\b[^|;&]*\b(commit|push)\b/.test(command)) {
       const protectedBranches = state.protectedBranches ?? []
-      const branch = currentBranch(cwd ?? root)
+      // A batch fix works in its own worktree, reached by `cd` or `git -C`: when the
+      // command names it, that worktree's branch is the one being committed to.
+      const inWorktree =
+        state.worktree && command.replace(/\\/g, '/').includes(state.worktree.replace(/\\/g, '/'))
+      const branch = currentBranch(inWorktree ? state.worktree : (cwd ?? root))
       if (branch && protectedBranches.includes(branch))
         deny(t('remProtected', { finding: state.finding, branch }))
       if (

@@ -38,9 +38,27 @@ export const REPORT_FORMATS = { html: 'html', md: 'md' }
 export const DEFAULT_REPORT_FORMAT = 'html'
 const REPORT_FORMAT_ALIASES = { htm: 'html', markdown: 'md' }
 
+/**
+ * What a scan ends with. `report`: the report only. `fix`: no report, the retained
+ * findings fixed on a new branch. `review`: the report, then the user picks the
+ * findings to fix, then they are fixed on a new branch.
+ */
+export const MODES = ['report', 'fix', 'review']
+export const DEFAULT_MODE = 'report'
+const MODE_ALIASES = {
+  'report-only': 'report',
+  'fix-only': 'fix',
+  'report-then-fix': 'review',
+  confirm: 'review',
+}
+
 export const DEFAULT_CONFIG = {
   // null: CLAUDE_PLUGINS_LANGUAGE, then English (see i18n.mjs).
   language: null,
+  // null: the scanner's "Scan mode" row in /config, then report.
+  mode: null,
+  // Lowest severity that `all` selects for a fix (info is left out by default).
+  fixMinSeverity: 'low',
   reports: 'docs/scans',
   // null: the scanner's "Report format" row in /config, then html.
   reportFormat: null,
@@ -122,6 +140,29 @@ export function reportFormatFor(config) {
   return format
     ? { format, source, value, known: true }
     : { format: DEFAULT_REPORT_FORMAT, source, value, known: false }
+}
+
+/**
+ * The scan mode, first match wins: the `--mode` argument, `mode` in the project
+ * config, the `scan_mode` row in /config, report. `known` is false for an
+ * unsupported value (report is then used); `source` is arg, project, user or default.
+ */
+export function modeFor(config, override = null) {
+  const candidates = [
+    ['arg', override],
+    ['project', config.mode],
+    ['user', userOption(PLUGIN_ROOT, 'scan_mode')],
+  ]
+  const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
+    'default',
+    null,
+  ]
+  if (value == null) return { mode: DEFAULT_MODE, source, value, known: true }
+  const raw = String(value).trim().toLowerCase()
+  const mode = MODES.includes(raw) ? raw : MODE_ALIASES[raw]
+  return mode
+    ? { mode, source, value, known: true }
+    : { mode: DEFAULT_MODE, source, value, known: false }
 }
 
 export function writeJson(file, value) {
