@@ -27,5 +27,5 @@ The script: `node "${CLAUDE_PLUGIN_ROOT}/scripts/scanner.mjs"` (below: `SCANNER`
    ```
 
 5. `SCANNER guard off` — **always**, even if the agent failed.
-6. Relay the agent's account: branch, commit, checks, what could not be verified, and the
+6. Relay the agent's account, in the profile's language (`language` in `profile.json`): branch, commit, checks, what could not be verified, and the
    worktree path. **Do not push and do not open a pull request**: only offer to.

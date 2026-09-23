@@ -8,15 +8,18 @@
 //   consolidate <run>                       findings-B*.json → findings.json + triage batches
 //   finalize <run>                          verdicts-T*.json → final.json + history
 //   check                                   check profiles and config against the repo
+//   language [<code>]                       show the language, or set it in .scanner/config.json
 //   guard status | off | remediate <run> <id>
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
+  CONFIG_FILE,
   SEVERITIES,
   STATE_DIR,
   availableTypes,
   git,
+  i18nFor,
   isoDay,
   loadProfile,
   matchGlob,
@@ -29,9 +32,26 @@ import {
   timestamp,
   writeJson,
 } from './lib.mjs'
+import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
 
 const root = projectRoot()
 const [command, ...args] = process.argv.slice(2)
+// Messages follow the project's `language`; a broken config still gets English messages.
+const i18n = (() => {
+  try {
+    return i18nFor(readConfig(root))
+  } catch {
+    return i18nFor(null)
+  }
+})()
+const t = i18n.t
+const SOURCE_KEYS = {
+  project: 'sourceProject',
+  env: 'sourceEnv',
+  user: 'sourceUser',
+  default: 'sourceDefault',
+}
+const languageSource = () => t(SOURCE_KEYS[i18n.source])
 
 function option(name, fallback = null) {
   const i = args.indexOf(`--${name}`)
@@ -47,9 +67,7 @@ function fail(message) {
 
 function profileOf(config, type) {
   if (!availableTypes(root, config).includes(type))
-    fail(
-      `Unknown or disabled type "${type}". Available: ${availableTypes(root, config).join(', ')}`
-    )
+    fail(t('unknownType', { type, list: availableTypes(root, config).join(', ') }))
   const { profile, problems } = loadProfile(root, config, type)
   if (!profile) fail(problems.join('\n'))
   return profile
@@ -57,7 +75,7 @@ function profileOf(config, type) {
 
 function runDir(run) {
   const dir = path.isAbsolute(run) ? run : path.join(root, STATE_DIR, 'runs', run)
-  if (!existsSync(dir)) fail(`Run not found: ${dir}`)
+  if (!existsSync(dir)) fail(t('runNotFound', { dir }))
   return dir
 }
 
@@ -153,14 +171,14 @@ function cmdProfile() {
 function cmdPrepare() {
   const config = readConfig(root)
   const type = args[0]
-  if (!type) fail('Usage: prepare <type> [--scope full|diff|<path>] [--deep]')
+  if (!type) fail(t('usage', { syntax: 'prepare <type> [--scope full|diff|<path>] [--deep]' }))
   const profile = profileOf(config, type)
   const scope = option('scope', 'full')
   const deep = option('deep') === true
 
   const all = filesInScope(config, scope)
   const files = all.filter((f) => !matchGlob(f, profile.exclusions))
-  if (!files.length) fail(`No file left in scope "${scope}" after exclusions.`)
+  if (!files.length) fail(t('noFileInScope', { scope }))
 
   const batches = splitIntoBatches(files, (config.batches ?? 4) * (deep ? 2 : 1))
   const run = `${type}-${timestamp()}`
@@ -191,34 +209,46 @@ function cmdPrepare() {
     type,
     exclusions: profile.exclusions,
     writeAllowed: [`${STATE_DIR}/runs/${run}/**`, `${config.reports}/**`],
+    lang: i18n.code,
     expires: expiry(config),
   })
 
   console.log(`RUN=${run}`)
   console.log(`DIR=${toPosix(path.relative(root, dir))}`)
+  console.log(`LANG=${profile.language_code}`)
   console.log(
-    `Profile ${type} (fingerprint ${profile.fingerprint}${profile.sources.overlay ? ', with project overlay' : ''}), commit ${meta.commit} on ${meta.branch}`
+    t('profileLine', {
+      type,
+      fingerprint: profile.fingerprint,
+      overlay: profile.sources.overlay ? t('withOverlay') : '',
+      commit: meta.commit,
+      branch: meta.branch,
+    })
   )
   console.log(
-    `${files.length} files, ${meta.excluded} excluded by the profile, ${batches.length} batches:`
+    t('filesLine', { files: files.length, excluded: meta.excluded, batches: batches.length })
   )
   for (const b of meta.batches)
     console.log(
-      `  ${b.id} — ${b.files} files, ${Math.round(b.bytes / 1024)} KB: ${b.groups.join(', ')}`
+      t('batchLine', {
+        id: b.id,
+        files: b.files,
+        kb: Math.round(b.bytes / 1024),
+        groups: b.groups.join(', '),
+      })
     )
-  console.log(
-    'Guard armed: excluded files are unreadable, writes are limited to the run and the reports.'
-  )
+  console.log(t('guardArmed'))
 }
 
 function validateFinding(f, source) {
   const errors = []
   for (const field of ['title', 'file', 'rule', 'description'])
-    if (typeof f[field] !== 'string' || !f[field].trim()) errors.push(`missing ${field}`)
+    if (typeof f[field] !== 'string' || !f[field].trim()) errors.push(t('missingField', { field }))
   if (!SEVERITIES.includes(f.severity))
-    errors.push(`severity "${f.severity}" not in ${SEVERITIES.join('/')}`)
-  if (f.line != null && !Number.isInteger(f.line)) errors.push('line is not an integer')
-  if (f.file && !existsSync(path.join(root, f.file))) errors.push(`file does not exist: ${f.file}`)
+    errors.push(t('badSeverity', { severity: f.severity, list: SEVERITIES.join('/') }))
+  if (f.line != null && !Number.isInteger(f.line)) errors.push(t('lineNotInteger'))
+  if (f.file && !existsSync(path.join(root, f.file)))
+    errors.push(t('fileMissing', { file: f.file }))
   return errors.length ? `${source} "${f.title ?? '?'}": ${errors.join(', ')}` : null
 }
 
@@ -245,7 +275,7 @@ function cmdConsolidate() {
     try {
       list = readJson(path.join(dir, file))
     } catch (e) {
-      rejected.push(`${file}: unreadable JSON (${e.message})`)
+      rejected.push(t('unreadableJson', { file, error: e.message }))
       continue
     }
     for (const f of Array.isArray(list) ? list : (list.findings ?? [])) {
@@ -271,9 +301,9 @@ function cmdConsolidate() {
     writeJson(path.join(dir, `triage-${id}.json`), findings.slice(i, i + 10))
     triage.push(id)
   }
-  console.log(`${findings.length} unique findings, ${rejected.length} rejected by the schema.`)
-  if (missing.length) console.log(`⚠ Batches without a findings file: ${missing.join(', ')}`)
-  for (const r of rejected.slice(0, 10)) console.log(`  rejected — ${r}`)
+  console.log(t('consolidated', { findings: findings.length, rejected: rejected.length }))
+  if (missing.length) console.log(t('batchesWithoutFile', { list: missing.join(', ') }))
+  for (const r of rejected.slice(0, 10)) console.log(t('rejectedLine', { reason: r }))
   console.log(`TRIAGE_BATCHES=${triage.join(',')}`)
 }
 
@@ -336,7 +366,7 @@ function cmdFinalize() {
       finding.severity !== 'info'
     ) {
       finding.severity = 'info'
-      finding.downgraded = 'no reachability path'
+      finding.downgraded = t('noReachability')
     }
     kept.push(finding)
   }
@@ -385,18 +415,24 @@ function cmdFinalize() {
   if (full) writeJson(path.join(root, config.history, `${meta.run}.json`), final)
 
   console.log(
-    `${kept.length} kept (${SEVERITIES.map((s) => `${final.counts[s]} ${s}`).join(', ')}), ${refuted.length} refuted.`
+    t('finalized', {
+      kept: kept.length,
+      counts: SEVERITIES.map((s) => `${final.counts[s]} ${s}`).join(', '),
+      refuted: refuted.length,
+    })
   )
   if (previous)
     console.log(
-      `Compared with ${previous.run}: ${kept.filter((f) => f.status === 'new').length} new, ${resolved.length} resolved.`
+      t('comparedWith', {
+        run: previous.run,
+        new: kept.filter((f) => f.status === 'new').length,
+        resolved: resolved.length,
+      })
     )
   if (previous && previous.profile_fingerprint !== profile.fingerprint)
-    console.log(
-      '⚠ The profile changed since the previous scan: part of the difference may come from it.'
-    )
-  if (!full) console.log('Partial scope: no "resolved" list, no history entry.')
-  if (untriaged.length) console.log(`⚠ No triage verdict for: ${untriaged.join(', ')}`)
+    console.log(t('profileChanged'))
+  if (!full) console.log(t('partialScope'))
+  if (untriaged.length) console.log(t('noVerdict', { list: untriaged.join(', ') }))
   console.log(`REPORT=${final.report}`)
 }
 
@@ -404,14 +440,26 @@ function cmdCheck() {
   const config = readConfig(root)
   const lines = []
   let failures = 0
-  if (!config._hasFile) lines.push('· no .scanner/config.json — defaults apply')
+  if (!config._hasFile) lines.push(t('noConfig'))
+  if (i18n.known)
+    lines.push(t('languageLine', { name: i18n.name, code: i18n.code, source: languageSource() }))
+  else {
+    failures++
+    lines.push(t('unsupportedLanguage', { value: i18n.value, list: SUPPORTED.join(', ') }))
+  }
   for (const type of availableTypes(root, config)) {
     const { profile, problems } = loadProfile(root, config, type)
     failures += problems.length
     for (const p of problems) lines.push(`✗ ${p}`)
     if (profile)
       lines.push(
-        `✓ ${type}: ${Object.keys(profile).filter((k) => k.endsWith('_guidance')).length} guidance blocks, ${profile.exclusions.length} exclusions${profile.sources.overlay ? ', overlay' : ''}, fingerprint ${profile.fingerprint}`
+        t('typeOk', {
+          type,
+          guidance: Object.keys(profile).filter((k) => k.endsWith('_guidance')).length,
+          exclusions: profile.exclusions.length,
+          overlay: profile.sources.overlay ? t('overlaySuffix') : '',
+          fingerprint: profile.fingerprint,
+        })
       )
   }
 
@@ -434,31 +482,32 @@ function cmdCheck() {
     const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
     const n = texts.filter((t) => re.test(t)).length
     if (!n) failures++
-    lines.push(`${n ? '✓' : '✗'} constant ${name}: ${n} file(s)`)
+    lines.push(t('constant', { mark: n ? '✓' : '✗', name, n }))
   }
   const pkgFile = path.join(root, 'package.json')
   const pkg = existsSync(pkgFile) ? readJson(pkgFile) : {}
   const deps = { ...pkg.dependencies, ...pkg.devDependencies }
   for (const name of check.libraries?.present ?? []) {
     if (!deps[name]) failures++
-    lines.push(`${deps[name] ? '✓' : '✗'} ${name} present in package.json`)
+    lines.push(t('libraryPresent', { mark: deps[name] ? '✓' : '✗', name }))
   }
   for (const name of check.libraries?.absent ?? []) {
     if (deps[name]) failures++
-    lines.push(`${deps[name] ? '✗' : '✓'} ${name} absent from package.json`)
+    lines.push(t('libraryAbsent', { mark: deps[name] ? '✗' : '✓', name }))
   }
   for (const { label, glob, expected } of check.counts ?? []) {
     const n = tracked.filter((f) => matchGlob(f, [glob])).length
     lines.push(
-      `${expected == null || n === expected ? '✓' : '≠'} ${label}: ${n}${expected == null ? '' : ` (config says ${expected})`}`
+      t('count', {
+        mark: expected == null || n === expected ? '✓' : '≠',
+        label,
+        n,
+        expected: expected == null ? '' : t('configSays', { expected }),
+      })
     )
   }
   console.log(lines.join('\n'))
-  console.log(
-    failures
-      ? `\n${failures} point(s) to fix before scanning.`
-      : '\nProfiles and config are consistent with the repository.'
-  )
+  console.log(`\n${failures ? t('toFix', { n: failures }) : t('consistent')}`)
   process.exit(failures ? 1 : 0)
 }
 
@@ -467,19 +516,19 @@ function cmdGuard() {
   const [action, run, id] = args
   if (action === 'status' || !action) {
     const state = readState(root)
-    console.log(state ? JSON.stringify(state, null, 2) : 'Guard inactive.')
+    console.log(state ? JSON.stringify(state, null, 2) : t('guardInactive'))
     return
   }
   if (action === 'off') {
     writeJson(stateFile(root), { mode: 'inactive', since: new Date().toISOString() })
-    console.log('Guard lifted.')
+    console.log(t('guardLifted'))
     return
   }
   if (action === 'remediate') {
-    if (!run || !id) fail('Usage: guard remediate <run> <id>')
+    if (!run || !id) fail(t('usage', { syntax: 'guard remediate <run> <id>' }))
     const final = readJson(path.join(runDir(run), 'final.json'))
     const finding = final.findings.find((f) => f.id === id)
-    if (!finding) fail(`Finding ${id} not found in ${run}.`)
+    if (!finding) fail(t('findingNotFound', { id, run }))
     writeJson(stateFile(root), {
       mode: 'remediation',
       run: final.run,
@@ -487,12 +536,41 @@ function cmdGuard() {
       writeDenied: config.guard.writeDenied,
       commandsDenied: config.guard.commandsDenied,
       protectedBranches: config.guard.protectedBranches,
+      lang: i18n.code,
       expires: expiry(config),
     })
     console.log(JSON.stringify(finding, null, 2))
     return
   }
-  fail('Usage: guard status | off | remediate <run> <id>')
+  fail(t('usage', { syntax: 'guard status | off | remediate <run> <id>' }))
+}
+
+/** Without argument: the current language. With a code or a name: writes it to the config. */
+function cmdLanguage() {
+  const value = args[0]
+  const list = SUPPORTED.map((c) => `${c} (${LANGUAGES[c].native})`).join(', ')
+  if (!value) {
+    if (!i18n.known)
+      console.log(t('unsupportedLanguage', { value: i18n.value, list: SUPPORTED.join(', ') }))
+    console.log(
+      t('languageCurrent', {
+        name: i18n.name,
+        code: i18n.code,
+        source: languageSource(),
+        list,
+      })
+    )
+    return
+  }
+  const { code, known } = resolveLanguage(value)
+  if (!known) fail(t('languageUnknown', { value, list }))
+  const file = path.join(root, CONFIG_FILE)
+  const own = existsSync(file) ? readJson(file) : {}
+  writeJson(file, { ...own, language: code })
+  // Confirm in the new language, which is what the user asked for.
+  console.log(
+    i18nFor(code).t('languageSet', { name: LANGUAGES[code].native, code, file: CONFIG_FILE })
+  )
 }
 
 const commands = {
@@ -502,11 +580,12 @@ const commands = {
   consolidate: cmdConsolidate,
   finalize: cmdFinalize,
   check: cmdCheck,
+  language: cmdLanguage,
   guard: cmdGuard,
 }
 
 try {
-  if (!commands[command]) fail(`Unknown command. Available: ${Object.keys(commands).join(', ')}`)
+  if (!commands[command]) fail(t('unknownCommand', { list: Object.keys(commands).join(', ') }))
   commands[command]()
 } catch (e) {
   fail(`scanner: ${e.message}`)

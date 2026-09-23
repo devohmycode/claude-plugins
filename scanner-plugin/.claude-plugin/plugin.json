@@ -1,6 +1,6 @@
 {
   "name": "scanner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML report, finding tracking across scans, and guarded remediation — with built-in profiles and optional per-project overlays.",
   "author": {
     "name": "DevOhMyCode",
@@ -9,5 +9,14 @@
   "homepage": "https://github.com/devohmycode/claude-plugins/tree/main/scanner-plugin",
   "repository": "https://github.com/devohmycode/claude-plugins",
   "license": "MIT",
-  "keywords": ["scan", "audit", "security", "performance", "accessibility", "dead-code", "coverage", "code-review"]
+  "keywords": ["scan", "audit", "security", "performance", "accessibility", "dead-code", "coverage", "code-review"],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).",
+      "options": ["en", "fr", "es", "de"],
+      "default": "en"
+    }
+  }
 }

@@ -14,7 +14,8 @@ You write the report of a finished scan. Your prompt gives you `DIR` (the run di
   (commit, branch, scope, profile fingerprint, previous scan).
 - `DIR/profile.json`: **`report_guidance` is your main instruction** — ordering, what to
   state up front, the shape of a finding. It overrides the default structure below. Write in
-  the profile's `language`.
+  the profile's `language` — headings, labels and prose, severity and status names included —
+  and set `<html lang>` to its `language_code`.
 - If reports already exist in the directory of `REPORT`, read one and reuse its look
   (typography, colours, header): the report should look like it belongs to the repository.
 
