@@ -1,0 +1,32 @@
+{
+  "language": "English",
+  "reports": "docs/scans",
+  "reportName": "scan-{type}-{YYYYMMDD}.html",
+  "history": ".scanner/history",
+  "diffBase": "main",
+  "remediationBase": "main",
+  "branchPrefix": "fix/",
+  "batches": 4,
+  "reportInstructions": "",
+  "types": {
+    "security": { "requireReachability": true },
+    "performance": { "exclusions": { "remove": ["docs/**"] } },
+    "dead-code": { "exclusions": { "add": ["legacy/**"] } }
+  },
+  "check": {
+    "ignore": ["tests/**", "docs/**"],
+    "constants": ["getCurrentUserScope", "safeRedirect"],
+    "libraries": { "present": [], "absent": [] },
+    "counts": [{ "label": "API routes", "glob": "src/api/**/route.ts", "expected": 40 }]
+  },
+  "guard": {
+    "ttlHours": 6,
+    "writeDenied": ["**/generated/**", "package-lock.json"],
+    "commandsDenied": ["--no-verify", "\\bnpm\\s+run\\s+format\\b"],
+    "protectedBranches": ["main"]
+  },
+  "commits": {
+    "checkOutsideScan": false,
+    "forbiddenTrailers": ["^Co-authored-by:"]
+  }
+}

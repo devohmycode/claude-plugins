@@ -1,0 +1,29 @@
+{
+  "description": "Scanner guard: during a scan, profile exclusions are unreadable and writes are limited to the run; during a remediation, denied paths, commands and protected branches are enforced; commits are checked for forbidden trailers.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Glob|NotebookRead|Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\" pre",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\" post",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
