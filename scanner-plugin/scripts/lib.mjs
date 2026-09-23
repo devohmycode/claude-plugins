@@ -87,6 +87,9 @@ export const DEFAULT_CONFIG = {
   branchPrefix: 'fix/',
   batches: 4,
   reportInstructions: '',
+  // Opened to the reporter once the scan is finalized, profile exclusions notwithstanding:
+  // `read` globs (the reports directory is always readable), `write` globs (e.g. a registry).
+  reportAccess: { read: [], write: [] },
   types: {},
   check: {},
   guard: {
@@ -125,6 +128,7 @@ export function readConfig(root) {
     ...own,
     guard: { ...DEFAULT_CONFIG.guard, ...own.guard },
     commits: { ...DEFAULT_CONFIG.commits, ...own.commits },
+    reportAccess: { ...DEFAULT_CONFIG.reportAccess, ...own.reportAccess },
     _hasFile: existsSync(file),
   }
 }
