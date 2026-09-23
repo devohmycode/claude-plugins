@@ -1,7 +1,8 @@
 {
   "language": "en",
   "reports": "docs/scans",
-  "reportName": "scan-{type}-{YYYYMMDD}.html",
+  "reportFormat": "html",
+  "reportName": "scan-{type}-{YYYYMMDD}.{ext}",
   "history": ".scanner/history",
   "diffBase": "main",
   "remediationBase": "main",

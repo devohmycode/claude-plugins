@@ -54,5 +54,7 @@
   "sourceProject": "from .scanner/config.json",
   "sourceEnv": "from CLAUDE_PLUGINS_LANGUAGE",
   "sourceUser": "from /config",
-  "sourceDefault": "default"
+  "sourceDefault": "default",
+  "reportFormatLine": "✓ report format: {format}, {source}",
+  "unsupportedReportFormat": "✗ report format \"{value}\" is not supported ({list}): html is used"
 }

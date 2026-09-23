@@ -6,7 +6,8 @@
 // repository root after editing this file, never edit the copies.
 //
 // The engine holds no message: each plugin keeps its catalogs in
-// <plugin>/locales/<code>.json, `en.json` being the reference.
+// <plugin>/locales/<code>.json, `en.json` being the reference. It also reads the
+// plugin's /config options (`userOption`), language or any other.
 //
 // Language choice, first match wins (`source` in the result says which):
 //   1. `project` — the value the plugin passes (its per-project `language` option);
@@ -29,7 +30,6 @@ import path from 'node:path'
 
 export const DEFAULT_LANGUAGE = 'en'
 export const ENV_VAR = 'CLAUDE_PLUGINS_LANGUAGE'
-export const USER_OPTION_ENV = 'CLAUDE_PLUGIN_OPTION_LANGUAGE'
 
 /** Per code: English name (for agents and prompts), native name (for the user), aliases. */
 export const LANGUAGES = {
@@ -78,12 +78,15 @@ export const USER_CONFIG_FIELD = {
 }
 
 /**
- * The plugin's /config value: the hook environment first, then the user
- * settings.json (a script run through Bash does not get the variable).
- * `pluginDir` is the plugin root, whose manifest gives the plugin name.
+ * A plugin's /config value (`userConfig.<key>` in its manifest): the hook
+ * environment first (CLAUDE_PLUGIN_OPTION_<KEY>), then the user settings.json,
+ * `pluginConfigs["<plugin>@<marketplace>"].options.<key>` — a script run
+ * through Bash does not get the variable. `pluginDir` is the plugin root, whose
+ * manifest gives the plugin name. Null when the option is not set anywhere.
  */
-export function userLanguage(pluginDir, env = process.env) {
-  if (env[USER_OPTION_ENV]) return env[USER_OPTION_ENV]
+export function userOption(pluginDir, key, env = process.env) {
+  const fromEnv = env[`CLAUDE_PLUGIN_OPTION_${key.toUpperCase()}`]
+  if (fromEnv != null && fromEnv !== '') return fromEnv
   if (!pluginDir) return null
   try {
     const manifest = path.join(pluginDir, '.claude-plugin', 'plugin.json')
@@ -91,7 +94,7 @@ export function userLanguage(pluginDir, env = process.env) {
     const dir = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
     const { pluginConfigs = {} } = JSON.parse(readFileSync(path.join(dir, 'settings.json'), 'utf8'))
     const id = Object.keys(pluginConfigs).find((k) => k === name || k.startsWith(`${name}@`))
-    return pluginConfigs[id]?.options?.language ?? null
+    return pluginConfigs[id]?.options?.[key] ?? null
   } catch {
     return null
   }
@@ -102,7 +105,7 @@ export function pickLanguage(own, { env = process.env, pluginDir = null } = {}) 
   const candidates = [
     ['project', own],
     ['env', env[ENV_VAR]],
-    ['user', userLanguage(pluginDir, env)],
+    ['user', userOption(pluginDir, 'language', env)],
   ]
   const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
     'default',

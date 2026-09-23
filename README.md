@@ -15,7 +15,7 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
 
 | Plugin | Version | Description |
 | --- | --- | --- |
-| [scanner](scanner-plugin/) | 0.2.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML report, finding tracking across scans, and guarded remediation. |
+| [scanner](scanner-plugin/) | 0.3.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
 
 ## Layout
 

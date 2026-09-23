@@ -15,6 +15,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import {
   CONFIG_FILE,
+  REPORT_FORMATS,
   SEVERITIES,
   STATE_DIR,
   availableTypes,
@@ -27,6 +28,7 @@ import {
   readConfig,
   readJson,
   readState,
+  reportFormatFor,
   sha1,
   stateFile,
   timestamp,
@@ -316,14 +318,23 @@ function latestHistory(config, type, exceptRun) {
   return candidates.length ? readJson(path.join(dir, candidates.at(-1))) : null
 }
 
-function reportPath(config, type) {
+/**
+ * `{ext}` in `reportName` becomes the format's extension; a name written with a
+ * fixed extension (`….html`, `….md`, the pre-0.3 default) gets it replaced, so
+ * the file always matches the format.
+ */
+function reportPath(config, type, ext) {
   let name = config.reportName.replace('{type}', type)
   for (const [token, value] of Object.entries(isoDay())) name = name.replace(`{${token}}`, value)
+  name = name.includes('{ext}')
+    ? name.replace('{ext}', ext)
+    : `${name.replace(/\.(html?|md|markdown)$/i, '')}.${ext}`
   return path.posix.join(config.reports, name)
 }
 
 function cmdFinalize() {
   const config = readConfig(root)
+  const reportFormat = reportFormatFor(config)
   const dir = runDir(args[0])
   const meta = readJson(path.join(dir, 'meta.json'))
   const profile = readJson(path.join(dir, 'profile.json'))
@@ -409,7 +420,8 @@ function cmdFinalize() {
     refuted,
     resolved,
     untriaged,
-    report: reportPath(config, meta.type),
+    report_format: reportFormat.format,
+    report: reportPath(config, meta.type, REPORT_FORMATS[reportFormat.format]),
   }
   writeJson(path.join(dir, 'final.json'), final)
   if (full) writeJson(path.join(root, config.history, `${meta.run}.json`), final)
@@ -433,6 +445,7 @@ function cmdFinalize() {
     console.log(t('profileChanged'))
   if (!full) console.log(t('partialScope'))
   if (untriaged.length) console.log(t('noVerdict', { list: untriaged.join(', ') }))
+  console.log(`FORMAT=${final.report_format}`)
   console.log(`REPORT=${final.report}`)
 }
 
@@ -441,6 +454,23 @@ function cmdCheck() {
   const lines = []
   let failures = 0
   if (!config._hasFile) lines.push(t('noConfig'))
+  const reportFormat = reportFormatFor(config)
+  if (reportFormat.known)
+    lines.push(
+      t('reportFormatLine', {
+        format: reportFormat.format,
+        source: t(SOURCE_KEYS[reportFormat.source]),
+      })
+    )
+  else {
+    failures++
+    lines.push(
+      t('unsupportedReportFormat', {
+        value: reportFormat.value,
+        list: Object.keys(REPORT_FORMATS).join(', '),
+      })
+    )
+  }
   if (i18n.known)
     lines.push(t('languageLine', { name: i18n.name, code: i18n.code, source: languageSource() }))
   else {

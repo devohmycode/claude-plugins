@@ -1,5 +1,5 @@
 ---
-description: Run a local scan with a profile (parallel investigation, adversarial triage, HTML report)
+description: Run a local scan with a profile (parallel investigation, adversarial triage, HTML or Markdown report)
 argument-hint: <type> [--scope full|diff|<path>] [--deep]
 allowed-tools: Bash(node:*), Read, Agent
 ---
@@ -54,7 +54,7 @@ BATCH=<T1, T2…>
 ## 5. Finalize
 
 `SCANNER finalize <RUN>` — applies the verdicts, compares with the previous scan (new,
-persisting, resolved), archives the result. Note `REPORT=`.
+persisting, resolved), archives the result. Note `FORMAT=` (`html` or `md`) and `REPORT=`.
 
 ## 6. Report
 
@@ -62,6 +62,7 @@ Launch a `scanner:reporter` agent:
 
 ```
 DIR=<run directory>
+FORMAT=<format noted above>
 REPORT=<path noted above>
 INSTRUCTIONS=<the reportInstructions field of .scanner/config.json, if any>
 ```

@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createI18n } from './i18n.mjs'
+import { createI18n, userOption } from './i18n.mjs'
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const STATE_DIR = '.scanner'
@@ -33,11 +33,18 @@ const REQUIRED_FIELDS = [
 
 export const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
 
+/** Report formats: the value of `reportFormat` / the /config row → file extension. */
+export const REPORT_FORMATS = { html: 'html', md: 'md' }
+export const DEFAULT_REPORT_FORMAT = 'html'
+const REPORT_FORMAT_ALIASES = { htm: 'html', markdown: 'md' }
+
 export const DEFAULT_CONFIG = {
   // null: CLAUDE_PLUGINS_LANGUAGE, then English (see i18n.mjs).
   language: null,
   reports: 'docs/scans',
-  reportName: 'scan-{type}-{YYYYMMDD}.html',
+  // null: the scanner's "Report format" row in /config, then html.
+  reportFormat: null,
+  reportName: 'scan-{type}-{YYYYMMDD}.{ext}',
   history: `${STATE_DIR}/history`,
   diffBase: 'main',
   remediationBase: null,
@@ -93,6 +100,28 @@ export function i18nFor(configOrLanguage) {
       ? configOrLanguage.language
       : configOrLanguage
   return createI18n({ localesDir: LOCALES_DIR, language })
+}
+
+/**
+ * The report format, first match wins: `reportFormat` in the project config, the
+ * `report_format` row in /config, html. `known` is false for an unsupported value
+ * (html is then used); `source` is project, user or default.
+ */
+export function reportFormatFor(config) {
+  const candidates = [
+    ['project', config.reportFormat],
+    ['user', userOption(PLUGIN_ROOT, 'report_format')],
+  ]
+  const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
+    'default',
+    null,
+  ]
+  if (value == null) return { format: DEFAULT_REPORT_FORMAT, source, value, known: true }
+  const raw = String(value).trim().toLowerCase().replace(/^\./, '')
+  const format = REPORT_FORMATS[raw] ? raw : REPORT_FORMAT_ALIASES[raw]
+  return format
+    ? { format, source, value, known: true }
+    : { format: DEFAULT_REPORT_FORMAT, source, value, known: false }
 }
 
 export function writeJson(file, value) {

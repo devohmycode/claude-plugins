@@ -2,7 +2,7 @@
 
 A Claude Code plugin that does, inside the repository and on the working tree, what a hosted
 code scanner does: one **profile** per scan type, a parallel investigation, an adversarial
-triage, an HTML report, finding tracking from one scan to the next, and guarded remediation.
+triage, an HTML or Markdown report, finding tracking from one scan to the next, and guarded remediation.
 
 Because it reads the working tree, it never scans a stale snapshot or the wrong repository.
 
@@ -81,8 +81,8 @@ committed.
 5. **`scanner.mjs finalize`** applies the verdicts, downgrades to `info` a finding without a
    reachability path when the type requires one, compares with the last full scan (**new /
    persisting / resolved**), and archives the result.
-6. **`reporter` agent**: a self-contained HTML report following the profile's `Report`
-   section.
+6. **`reporter` agent**: the report — a self-contained HTML page or a Markdown file, see
+   [Report format](#report-format) — following the profile's `Report` section.
 7. Guard lifted.
 
 Whatever can be counted goes through the script; agents only judge.
@@ -110,13 +110,13 @@ one scan at a time, hence the sequential `scan-all`. It expires after `guard.ttl
 .scanner/state.json               guard state (ignored)
 .scanner/runs/<type>-<timestamp>/ profile, batches, findings, verdicts, final.json (ignored)
 .scanner/history/<run>.json       result of full-scope scans (committed)
-<reports>/<reportName>            the HTML report
+<reports>/<reportName>            the report (.html or .md)
 ```
 
 ## Language
 
 English by default; French, Spanish and German are also available. The language covers the
-script and guard messages, the findings, verdicts and HTML report written by the agents, and
+script and guard messages, the findings, verdicts and report written by the agents, and
 the summaries given in the conversation. Machine lines (`RUN=`, `DIR=`, `REPORT=`…), severity
 and verdict identifiers in the JSON files, and rule slugs stay in English, so fingerprints do
 not depend on the language.
@@ -138,12 +138,28 @@ back to English, and `/scanner:check` flags it with `✗`.
 Messages live in `locales/<code>.json`; `scripts/i18n.mjs` is a copy of the repository's
 shared engine (`shared/i18n/`), not to be edited here.
 
+## Report format
+
+`html` by default: one self-contained page (inline CSS, light and dark mode). `md` gives a
+GitHub-flavored Markdown file instead, readable raw, rendered on GitHub, and easy to diff when
+reports are committed. First match wins:
+
+1. per project: `"reportFormat": "md"` in `.scanner/config.json`;
+2. for you, in every project: the **Report format** row of the scanner in `/config` (Claude
+   Code v2.1.271 or later);
+3. `html`.
+
+The extension follows the format: `{ext}` in `reportName` becomes `html` or `md`, and a
+`reportName` written with a fixed extension (`….html`) gets it replaced. `/scanner:check`
+shows the format in use and where it comes from, and flags an unsupported value with `✗`.
+
 ## Configuration — `.scanner/config.json` (optional)
 
 See `examples/config.json`. Keys:
 
 - `language` — `en` (default), `fr`, `es` or `de`: see [Language](#language);
-- `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`), `history`,
+- `reportFormat` — `html` (default) or `md`: see [Report format](#report-format);
+- `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
   `reportInstructions` (passed to the reporter);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
 - `types.<type>`: `enabled`, `requireReachability` (default: `security` only),
