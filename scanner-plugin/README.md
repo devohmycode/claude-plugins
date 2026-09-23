@@ -66,6 +66,7 @@ committed.
 | `/scanner:scan-all [--scope …]`                              | Check, then one scan per type, sequentially.                                              |
 | `/scanner:remediate <run> <id>`                              | Fixes one finding in an isolated worktree; commits, never pushes.                         |
 | `/scanner:guard [status\|off]`                               | Shows or lifts the guard (after an interrupted scan).                                     |
+| `/scanner:language [en\|fr\|es\|de]`                         | Shows or sets the plugin language (see below).                                            |
 
 ## How a scan runs
 
@@ -112,11 +113,28 @@ one scan at a time, hence the sequential `scan-all`. It expires after `guard.ttl
 <reports>/<reportName>            the HTML report
 ```
 
+## Language
+
+English by default; French, Spanish and German are also available. The language covers the
+script and guard messages, the findings, verdicts and HTML report written by the agents, and
+the summaries given in the conversation. Machine lines (`RUN=`, `DIR=`, `REPORT=`…), severity
+and verdict identifiers in the JSON files, and rule slugs stay in English, so fingerprints do
+not depend on the language.
+
+- per project: `/scanner:language fr`, or `"language": "fr"` in `.scanner/config.json`
+  (a code, or a name such as `French` / `Français`);
+- for every plugin of this marketplace at once: the `CLAUDE_PLUGINS_LANGUAGE` environment
+  variable, used when the project sets no language;
+- an unsupported value falls back to English, and `/scanner:check` flags it with `✗`.
+
+Messages live in `locales/<code>.json`; `scripts/i18n.mjs` is a copy of the repository's
+shared engine (`shared/i18n/`), not to be edited here.
+
 ## Configuration — `.scanner/config.json` (optional)
 
 See `examples/config.json`. Keys:
 
-- `language` — language of findings and reports (default `English`);
+- `language` — `en` (default), `fr`, `es` or `de`: see [Language](#language);
 - `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`), `history`,
   `reportInstructions` (passed to the reporter);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;

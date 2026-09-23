@@ -22,7 +22,8 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
   in `.scanner/profiles/`), splits the scope into batches and **arms the guard**: during the
   scan, files excluded by the profile are unreadable and writes are limited to the run
   directory and the reports.
-- Note `RUN=` and `DIR=` in its output. If it fails, show the error and stop.
+- Note `RUN=`, `DIR=` and `LANG=` in its output. Everything you say to the user from now on
+  is in the language `LANG=` names (`en`, `fr`, `es`, `de`). If it fails, show the error and stop.
 
 ## 2. Investigate — in parallel
 

@@ -55,7 +55,9 @@ found nothing. Each finding:
 
 - `snippet` and `rule` identify the finding from one scan to the next: copy the snippet
   exactly, and keep the same slug for the same category of defect.
-- Write prose fields in the profile's `language`.
+- Write prose fields (`title`, `description`, `reachability`, `evidence`) in the profile's
+  `language`. `rule` stays an English slug whatever the language, so that a finding keeps its
+  fingerprint when the project changes language.
 - The `consolidate` step rejects any finding whose file does not exist or whose required
   field is missing.
 

@@ -1,5 +1,5 @@
 {
-  "language": "English",
+  "language": "en",
   "reports": "docs/scans",
   "reportName": "scan-{type}-{YYYYMMDD}.html",
   "history": ".scanner/history",

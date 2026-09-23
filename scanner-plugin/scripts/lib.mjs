@@ -6,11 +6,13 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createI18n } from './i18n.mjs'
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const STATE_DIR = '.scanner'
 export const CONFIG_FILE = `${STATE_DIR}/config.json`
 export const OVERLAY_DIR = `${STATE_DIR}/profiles`
+export const LOCALES_DIR = path.join(PLUGIN_ROOT, 'locales')
 
 /** Profile fields, following Devin's code-scan profile layout, keyed by their heading. */
 export const FIELDS = {
@@ -32,7 +34,8 @@ const REQUIRED_FIELDS = [
 export const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
 
 export const DEFAULT_CONFIG = {
-  language: 'English',
+  // null: CLAUDE_PLUGINS_LANGUAGE, then English (see i18n.mjs).
+  language: null,
   reports: 'docs/scans',
   reportName: 'scan-{type}-{YYYYMMDD}.html',
   history: `${STATE_DIR}/history`,
@@ -81,6 +84,15 @@ export function readConfig(root) {
     commits: { ...DEFAULT_CONFIG.commits, ...own.commits },
     _hasFile: existsSync(file),
   }
+}
+
+/** The plugin's language and its `t()` for a config (or a raw language value). */
+export function i18nFor(configOrLanguage) {
+  const language =
+    configOrLanguage && typeof configOrLanguage === 'object'
+      ? configOrLanguage.language
+      : configOrLanguage
+  return createI18n({ localesDir: LOCALES_DIR, language })
 }
 
 export function writeJson(file, value) {
@@ -211,8 +223,9 @@ export function loadProfile(root, config, type) {
   const overlayFile = path.join(root, OVERLAY_DIR, `${type}.md`)
   const hasBuiltin = existsSync(builtinFile)
   const hasOverlay = existsSync(overlayFile)
+  const i18n = i18nFor(config)
   if (!hasBuiltin && !hasOverlay)
-    return { profile: null, problems: [`${type}: no built-in profile and no overlay`] }
+    return { profile: null, problems: [i18n.t('noBuiltinNoOverlay', { type })] }
 
   const base = hasBuiltin
     ? parseProfile(readFileSync(builtinFile, 'utf8'))
@@ -235,7 +248,7 @@ export function loadProfile(root, config, type) {
       : own
     if (value) profile[key] = value
     else if (REQUIRED_FIELDS.includes(key))
-      problems.push(`${type}: missing "## ${heading}" section`)
+      problems.push(i18n.t('missingSection', { type, heading }))
   }
 
   const adjust = config.types?.[type]?.exclusions ?? {}
@@ -248,7 +261,9 @@ export function loadProfile(root, config, type) {
     ]),
   ].filter((g) => !remove.has(g))
   profile.common_remediation = common.sections['remediation'] ?? ''
-  profile.language = config.language
+  // Agents write their prose in `language`; the report uses `language_code` for <html lang>.
+  profile.language = i18n.englishName
+  profile.language_code = i18n.code
   profile.require_reachability = config.types?.[type]?.requireReachability ?? type === 'security'
   profile.sources = {
     builtin: hasBuiltin,

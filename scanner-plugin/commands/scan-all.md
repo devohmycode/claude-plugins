@@ -17,7 +17,7 @@ type.
    own exclusions), follow exactly the `/scanner:scan` procedure with `<type> $ARGUMENTS`:
    prepare, investigate in parallel, consolidate, triage in parallel, finalize, report, guard
    off.
-4. Final summary: a type × severity table, new and resolved findings per type, the report
+4. Final summary, in the language of the `LANG=` line printed by `prepare`: a type × severity table, new and resolved findings per type, the report
    paths.
 
 Before starting, announce the number of types and batches planned: it is the order of

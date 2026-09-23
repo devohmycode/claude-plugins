@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   git,
+  i18nFor,
   matchGlob,
   matchGlobSuffix,
   projectRoot,
@@ -24,6 +25,8 @@ import {
 } from './lib.mjs'
 
 const event = process.argv[2]
+// Set once the state (or the config) is known; English until then.
+let t = i18nFor(null).t
 
 function deny(reason) {
   process.stdout.write(
@@ -80,27 +83,19 @@ function duringScan(state, root, tool, input) {
   if (READ_TOOLS.has(tool)) {
     const rel = relativeTo(root, targetPath(input))
     const glob = rel ? matchGlob(rel, state.exclusions ?? []) : null
-    if (glob)
-      deny(
-        `${rel} is excluded by the "${state.type}" profile (${glob}). Do not read it: the exclusion list is part of the profile.`
-      )
+    if (glob) deny(t('excludedRead', { rel, type: state.type, glob }))
     return
   }
   if (WRITE_TOOLS.has(tool)) {
     const rel = relativeTo(root, targetPath(input))
     if (rel === null) return // outside the repository (scratchpad, temp files): not our concern
     if (!matchGlob(rel, state.writeAllowed ?? []))
-      deny(
-        `Scan in progress (${state.run}): writes are limited to ${state.writeAllowed.join(', ')}. ${rel} is not one of them — a scan reports, it does not fix.`
-      )
+      deny(t('scanWrite', { run: state.run, allowed: state.writeAllowed.join(', '), rel }))
     return
   }
   if (tool === 'Bash') {
     const pattern = MUTATING_DURING_SCAN.find((re) => re.test(String(input.command ?? '')))
-    if (pattern)
-      deny(
-        `Scan in progress (${state.run}): command that would modify the repository denied (${pattern.source}). Reading, counting and running tests is fine; writing is not. Write findings with the Write tool into the run directory.`
-      )
+    if (pattern) deny(t('scanCommand', { run: state.run, pattern: pattern.source }))
   }
 }
 
@@ -111,29 +106,24 @@ function duringRemediation(state, root, tool, input, cwd) {
     // The worktree may live inside the repository (.claude/worktrees/…) or next to
     // it: globs are therefore tested on every suffix of the path.
     const glob = matchGlobSuffix(path.resolve(cwd ?? root, target), state.writeDenied ?? [])
-    if (glob)
-      deny(
-        `Remediation of ${state.finding}: ${target} is out of bounds (${glob}). Stop and report it instead of changing it.`
-      )
+    if (glob) deny(t('remWrite', { finding: state.finding, target, glob }))
     return
   }
   if (tool === 'Bash') {
     const command = String(input.command ?? '')
     for (const source of state.commandsDenied ?? [])
       if (new RegExp(source).test(command))
-        deny(`Remediation of ${state.finding}: command denied by the config (${source}).`)
+        deny(t('remCommand', { finding: state.finding, source }))
     if (/\bgit\b[^|;&]*\b(commit|push)\b/.test(command)) {
       const protectedBranches = state.protectedBranches ?? []
       const branch = currentBranch(cwd ?? root)
       if (branch && protectedBranches.includes(branch))
-        deny(
-          `Remediation of ${state.finding}: the current branch "${branch}" is protected. Create the fix branch first.`
-        )
+        deny(t('remProtected', { finding: state.finding, branch }))
       if (
         /\bpush\b/.test(command) &&
         protectedBranches.some((b) => new RegExp(`\\b${b}\\b`).test(command))
       )
-        deny(`Remediation of ${state.finding}: push to a protected branch.`)
+        deny(t('remPush', { finding: state.finding }))
     }
   }
 }
@@ -148,10 +138,7 @@ function afterCommit(config, cwd) {
     return
   }
   const found = forbidden.filter((source) => new RegExp(source, 'im').test(message))
-  if (found.length)
-    blockAfter(
-      `The last commit carries a forbidden attribution (${found.join(', ')}). Remove it with git commit --amend before going on.`
-    )
+  if (found.length) blockAfter(t('forbiddenTrailer', { list: found.join(', ') }))
 }
 
 try {
@@ -163,6 +150,8 @@ try {
   const toolInput = input.tool_input ?? {}
 
   if (event === 'pre') {
+    // The state records the language at arming time: no config read on every call.
+    if (state?.lang) t = i18nFor(state.lang).t
     if (state?.mode === 'scan') duringScan(state, root, tool, toolInput)
     else if (state?.mode === 'remediation')
       duringRemediation(state, root, tool, toolInput, input.cwd)
@@ -172,6 +161,7 @@ try {
     /\bgit\b[^|;&]*\bcommit\b/.test(String(toolInput.command ?? ''))
   ) {
     const config = readConfig(root)
+    t = i18nFor(state?.lang ?? config).t
     if (state?.mode === 'remediation' || config.commits.checkOutsideScan === true)
       afterCommit(config, input.cwd ?? root)
   }
