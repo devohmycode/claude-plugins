@@ -2,7 +2,7 @@
 
 A Claude Code plugin that does, inside the repository and on the working tree, what a hosted
 code scanner does: one **profile** per scan type, a parallel investigation, an adversarial
-triage, an HTML report, finding tracking from one scan to the next, and guarded remediation.
+triage, an HTML or Markdown report, finding tracking from one scan to the next, and guarded remediation.
 
 Because it reads the working tree, it never scans a stale snapshot or the wrong repository.
 
@@ -62,9 +62,9 @@ committed.
 | Command                                                      | Role                                                                                      |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `/scanner:check`                                             | Checks profiles, overlays and config against the repository. Run it before scanning.      |
-| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches. |
-| `/scanner:scan-all [--scope …]`                              | Check, then one scan per type, sequentially.                                              |
-| `/scanner:remediate <run> <id>`                              | Fixes one finding in an isolated worktree; commits, never pushes.                         |
+| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep] [--mode …]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches. `--mode`: see [Scan modes](#scan-modes). |
+| `/scanner:scan-all [--scope …] [--mode …]`                   | Check, then one scan per type, sequentially.                                              |
+| `/scanner:remediate <run> <selection>`                       | Fixes the selected findings on one new fix branch, in a worktree; commits, never pushes.  |
 | `/scanner:guard [status\|off]`                               | Shows or lifts the guard (after an interrupted scan).                                     |
 | `/scanner:language [en\|fr\|es\|de]`                         | Shows or sets the plugin language (see below).                                            |
 
@@ -81,11 +81,43 @@ committed.
 5. **`scanner.mjs finalize`** applies the verdicts, downgrades to `info` a finding without a
    reachability path when the type requires one, compares with the last full scan (**new /
    persisting / resolved**), and archives the result.
-6. **`reporter` agent**: a self-contained HTML report following the profile's `Report`
-   section.
+6. **`reporter` agent**: the report — a self-contained HTML page or a Markdown file, see
+   [Report format](#report-format) — following the profile's `Report` section.
 7. Guard lifted.
+8. Depending on the [mode](#scan-modes): the findings to fix are chosen, then fixed on a new
+   branch.
 
-Whatever can be counted goes through the script; agents only judge.
+Whatever can be counted goes through the script; agents only judge and fix.
+
+## Scan modes
+
+What a scan ends with:
+
+| Mode               | Report | Fixes                                                                  |
+| ------------------ | ------ | ---------------------------------------------------------------------- |
+| `report` (default) | yes    | none — `/scanner:remediate` stays available afterwards                 |
+| `fix`              | no     | every retained finding down to `fixMinSeverity`, without asking        |
+| `review`           | yes    | the ones **you pick** once the report is written; the scan waits for you |
+
+First match wins:
+
+1. for one run: `--mode fix` on `/scanner:scan` or `/scanner:scan-all`;
+2. per project: `"mode": "review"` in `.scanner/config.json`;
+3. for you, in every project: the **Scan mode** row of the scanner in `/config`;
+4. `report`.
+
+In `review` mode the scan lists the retained findings and asks which to fix: all (except
+`info`), critical and high only, none, or your own selection. A **selection** is one or more
+tokens: an id (`F3`), a severity (`high`), a severity and above (`>=medium` or `medium+`),
+`all`, `none` — the same grammar as `/scanner:remediate <run> <selection>`. `/scanner:scan-all`
+asks once every scan is done, one question per type.
+
+Fixes go to **one branch per run** — `<branchPrefix>scan-<type>-<YYYYMMDD>`, suffixed if it
+already exists — created from `remediationBase` in a worktree under `.scanner/worktrees/<run>`
+(ignored by git), so your working tree never switches branches. One `remediator` agent per
+finding, one after the other, one commit each; `scanner.mjs fix-status <run>` tells which
+were fixed, declined (with the reason), failed or not reached. Nothing is pushed. Remove the
+worktree once the branch is merged: `git worktree remove .scanner/worktrees/<run>`.
 
 ## The guard (hooks)
 
@@ -108,15 +140,17 @@ one scan at a time, hence the sequential `scan-all`. It expires after `guard.ttl
 
 ```
 .scanner/state.json               guard state (ignored)
-.scanner/runs/<type>-<timestamp>/ profile, batches, findings, verdicts, final.json (ignored)
+.scanner/runs/<type>-<timestamp>/ profile, batches, findings, verdicts, final.json,
+                                  remediation*.json (ignored)
+.scanner/worktrees/<run>/         the fix branch's worktree (ignored by its own .gitignore)
 .scanner/history/<run>.json       result of full-scope scans (committed)
-<reports>/<reportName>            the HTML report
+<reports>/<reportName>            the report (.html or .md)
 ```
 
 ## Language
 
 English by default; French, Spanish and German are also available. The language covers the
-script and guard messages, the findings, verdicts and HTML report written by the agents, and
+script and guard messages, the findings, verdicts and report written by the agents, and
 the summaries given in the conversation. Machine lines (`RUN=`, `DIR=`, `REPORT=`…), severity
 and verdict identifiers in the JSON files, and rule slugs stay in English, so fingerprints do
 not depend on the language.
@@ -138,12 +172,30 @@ back to English, and `/scanner:check` flags it with `✗`.
 Messages live in `locales/<code>.json`; `scripts/i18n.mjs` is a copy of the repository's
 shared engine (`shared/i18n/`), not to be edited here.
 
+## Report format
+
+`html` by default: one self-contained page (inline CSS, light and dark mode). `md` gives a
+GitHub-flavored Markdown file instead, readable raw, rendered on GitHub, and easy to diff when
+reports are committed. First match wins:
+
+1. per project: `"reportFormat": "md"` in `.scanner/config.json`;
+2. for you, in every project: the **Report format** row of the scanner in `/config` (Claude
+   Code v2.1.271 or later);
+3. `html`.
+
+The extension follows the format: `{ext}` in `reportName` becomes `html` or `md`, and a
+`reportName` written with a fixed extension (`….html`) gets it replaced. `/scanner:check`
+shows the format in use and where it comes from, and flags an unsupported value with `✗`.
+
 ## Configuration — `.scanner/config.json` (optional)
 
 See `examples/config.json`. Keys:
 
 - `language` — `en` (default), `fr`, `es` or `de`: see [Language](#language);
-- `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`), `history`,
+- `mode` — `report` (default), `fix` or `review`: see [Scan modes](#scan-modes);
+  `fixMinSeverity` (`low`) — the lowest severity that `all` selects;
+- `reportFormat` — `html` (default) or `md`: see [Report format](#report-format);
+- `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
   `reportInstructions` (passed to the reporter);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
 - `types.<type>`: `enabled`, `requireReachability` (default: `security` only),

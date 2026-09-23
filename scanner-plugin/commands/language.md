@@ -11,7 +11,7 @@ Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/scanner.mjs" language $ARGUMENTS` and s
   `language` into `.scanner/config.json`, creating the file if needed and keeping its other
   keys.
 
-The language applies to the script and guard messages, to the findings, verdicts and HTML
+The language applies to the script and guard messages, to the findings, verdicts and
 report written by the agents, and to the summaries you give the user. The output says where
 the language comes from. Precedence: this per-project value, then `CLAUDE_PLUGINS_LANGUAGE`
 (every plugin of the marketplace), then the scanner's **Language** row in `/config` (the

@@ -1,7 +1,7 @@
 {
   "name": "scanner",
-  "version": "0.3.0",
-  "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML report, finding tracking across scans, and guarded remediation — with built-in profiles and optional per-project overlays.",
+  "version": "0.4.0",
+  "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation — with built-in profiles and optional per-project overlays.",
   "author": {
     "name": "DevOhMyCode",
     "url": "https://github.com/devohmycode"
@@ -17,6 +17,20 @@
       "description": "Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).",
       "options": ["en", "fr", "es", "de"],
       "default": "en"
+    },
+    "scan_mode": {
+      "type": "string",
+      "title": "Scan mode",
+      "description": "What a scan ends with: report (the report only), fix (fixes on a new branch, no report) or review (the report, then you pick the findings, then fixes on a new branch).",
+      "options": ["report", "fix", "review"],
+      "default": "report"
+    },
+    "report_format": {
+      "type": "string",
+      "title": "Report format",
+      "description": "Format of scan reports: html (self-contained page) or md (Markdown).",
+      "options": ["html", "md"],
+      "default": "html"
     }
   }
 }

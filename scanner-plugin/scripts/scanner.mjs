@@ -4,17 +4,23 @@
 //
 //   types                                   list available scan types
 //   profile <type>                          print the effective profile (JSON)
-//   prepare <type> [--scope full|diff|<path>] [--deep]
+//   prepare <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review]
 //   consolidate <run>                       findings-B*.json → findings.json + triage batches
 //   finalize <run>                          verdicts-T*.json → final.json + history
+//   select <run> [<selection>]              list the retained findings, resolve a selection
+//   fix <run> <selection>                   fix branch + worktree, remediation guard armed
+//   fix-status <run>                        what the remediators did, commits on the branch
 //   check                                   check profiles and config against the repo
 //   language [<code>]                       show the language, or set it in .scanner/config.json
 //   guard status | off | remediate <run> <id>
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   CONFIG_FILE,
+  MODES,
+  REPORT_FORMATS,
   SEVERITIES,
   STATE_DIR,
   availableTypes,
@@ -23,10 +29,12 @@ import {
   isoDay,
   loadProfile,
   matchGlob,
+  modeFor,
   projectRoot,
   readConfig,
   readJson,
   readState,
+  reportFormatFor,
   sha1,
   stateFile,
   timestamp,
@@ -46,6 +54,7 @@ const i18n = (() => {
 })()
 const t = i18n.t
 const SOURCE_KEYS = {
+  arg: 'sourceArg',
   project: 'sourceProject',
   env: 'sourceEnv',
   user: 'sourceUser',
@@ -175,6 +184,9 @@ function cmdPrepare() {
   const profile = profileOf(config, type)
   const scope = option('scope', 'full')
   const deep = option('deep') === true
+  const asked = option('mode')
+  const mode = modeFor(config, typeof asked === 'string' ? asked : null)
+  if (!mode.known) fail(t('badMode', { value: mode.value, list: MODES.join(', ') }))
 
   const all = filesInScope(config, scope)
   const files = all.filter((f) => !matchGlob(f, profile.exclusions))
@@ -188,6 +200,7 @@ function cmdPrepare() {
     type,
     scope,
     deep,
+    mode: mode.mode,
     commit: git(['rev-parse', '--short', 'HEAD'], root).trim(),
     branch: git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim(),
     started: new Date().toISOString(),
@@ -216,6 +229,13 @@ function cmdPrepare() {
   console.log(`RUN=${run}`)
   console.log(`DIR=${toPosix(path.relative(root, dir))}`)
   console.log(`LANG=${profile.language_code}`)
+  console.log(`MODE=${mode.mode}`)
+  console.log(
+    t('modeAnnounce', {
+      description: t(`mode_${mode.mode}`),
+      source: t(SOURCE_KEYS[mode.source]),
+    })
+  )
   console.log(
     t('profileLine', {
       type,
@@ -316,14 +336,23 @@ function latestHistory(config, type, exceptRun) {
   return candidates.length ? readJson(path.join(dir, candidates.at(-1))) : null
 }
 
-function reportPath(config, type) {
+/**
+ * `{ext}` in `reportName` becomes the format's extension; a name written with a
+ * fixed extension (`….html`, `….md`, the pre-0.3 default) gets it replaced, so
+ * the file always matches the format.
+ */
+function reportPath(config, type, ext) {
   let name = config.reportName.replace('{type}', type)
   for (const [token, value] of Object.entries(isoDay())) name = name.replace(`{${token}}`, value)
+  name = name.includes('{ext}')
+    ? name.replace('{ext}', ext)
+    : `${name.replace(/\.(html?|md|markdown)$/i, '')}.${ext}`
   return path.posix.join(config.reports, name)
 }
 
 function cmdFinalize() {
   const config = readConfig(root)
+  const reportFormat = reportFormatFor(config)
   const dir = runDir(args[0])
   const meta = readJson(path.join(dir, 'meta.json'))
   const profile = readJson(path.join(dir, 'profile.json'))
@@ -409,7 +438,8 @@ function cmdFinalize() {
     refuted,
     resolved,
     untriaged,
-    report: reportPath(config, meta.type),
+    report_format: reportFormat.format,
+    report: reportPath(config, meta.type, REPORT_FORMATS[reportFormat.format]),
   }
   writeJson(path.join(dir, 'final.json'), final)
   if (full) writeJson(path.join(root, config.history, `${meta.run}.json`), final)
@@ -433,7 +463,174 @@ function cmdFinalize() {
     console.log(t('profileChanged'))
   if (!full) console.log(t('partialScope'))
   if (untriaged.length) console.log(t('noVerdict', { list: untriaged.join(', ') }))
+  console.log(`MODE=${final.mode ?? 'report'}`)
+  console.log(`FORMAT=${final.report_format}`)
   console.log(`REPORT=${final.report}`)
+}
+
+// ─── Selection and fixes ────────────────────────────────────────────────────
+
+const location = (f) => `${f.file}${f.line ? `:${f.line}` : ''}`
+
+/**
+ * A selection, comma- or space-separated: `F3` (an id), `high` (a severity),
+ * `>=medium` or `medium+` (that severity and above), `all` (every finding down to
+ * `fixMinSeverity`), `none`. Returns the findings in the report's order.
+ */
+function resolveSelection(config, { run, findings }, spec) {
+  const tokens = String(spec ?? '')
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const rank = (s) => SEVERITIES.indexOf(s)
+  const picked = new Set()
+  for (const raw of tokens) {
+    const token = raw.toLowerCase()
+    if (token === 'none') continue
+    let keep
+    if (token === 'all') {
+      const floor = rank(config.fixMinSeverity ?? 'low')
+      keep = (f) => rank(f.severity) <= (floor < 0 ? rank('low') : floor)
+    } else if (/^f\d+$/.test(token)) {
+      const id = token.toUpperCase()
+      if (!findings.some((f) => f.id === id)) fail(t('findingNotFound', { id, run }))
+      keep = (f) => f.id === id
+    } else {
+      const m = token.match(/^(?:>=)?([a-z]+)(\+)?$/)
+      const severity = m?.[1]
+      if (!severity || rank(severity) < 0) fail(t('badSelection', { token: raw }))
+      keep =
+        token.startsWith('>=') || m[2]
+          ? (f) => rank(f.severity) <= rank(severity)
+          : (f) => f.severity === severity
+    }
+    for (const f of findings) if (keep(f)) picked.add(f.id)
+  }
+  return findings.filter((f) => picked.has(f.id))
+}
+
+function cmdSelect() {
+  const config = readConfig(root)
+  const dir = runDir(args[0])
+  const final = readJson(path.join(dir, 'final.json'))
+  const selected = args[1] ? resolveSelection(config, final, args.slice(1).join(' ')) : null
+  for (const f of selected ?? final.findings)
+    console.log(`${f.id} [${f.severity}] ${f.title} — ${location(f)}`)
+  if (selected) console.log(`SELECTED=${selected.map((f) => f.id).join(',')}`)
+  else
+    console.log(
+      `ALL=${resolveSelection(config, final, 'all')
+        .map((f) => f.id)
+        .join(',')}`
+    )
+}
+
+function branchExists(name) {
+  try {
+    git(['rev-parse', '--verify', '--quiet', `refs/heads/${name}`], root)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** One branch per run, one worktree, one commit per finding: the remediators run one after the other. */
+function cmdFix() {
+  const config = readConfig(root)
+  const dir = runDir(args[0])
+  const final = readJson(path.join(dir, 'final.json'))
+  const selected = resolveSelection(config, final, args.slice(1).join(' '))
+  if (!selected.length) fail(t('selectionEmpty', { run: final.run }))
+
+  const base = config.remediationBase ?? git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim()
+  const stem = `${config.branchPrefix ?? 'fix/'}scan-${final.type}-${isoDay().YYYYMMDD}`
+  let branch = stem
+  for (let n = 2; branchExists(branch); n++) branch = `${stem}-${n}`
+
+  const parent = path.join(root, STATE_DIR, 'worktrees')
+  const worktree = path.join(parent, final.run)
+  if (existsSync(worktree)) fail(t('worktreeExists', { worktree: toPosix(worktree) }))
+  // The worktree lives inside the repository: this keeps it out of `git status`.
+  if (!existsSync(path.join(parent, '.gitignore'))) {
+    mkdirSync(parent, { recursive: true })
+    writeFileSync(path.join(parent, '.gitignore'), '*\n', 'utf8')
+  }
+  try {
+    execFileSync('git', ['worktree', 'add', '-b', branch, worktree, base], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  } catch (e) {
+    fail(t('worktreeFailed', { error: String(e.stderr || e.message).trim() }))
+  }
+
+  const remediation = {
+    run: final.run,
+    type: final.type,
+    branch,
+    base,
+    worktree: toPosix(worktree),
+    started: new Date().toISOString(),
+    findings: selected.map((f) => f.id),
+  }
+  writeJson(path.join(dir, 'remediation.json'), remediation)
+  writeJson(stateFile(root), {
+    mode: 'remediation',
+    run: final.run,
+    finding: remediation.findings.join(','),
+    worktree: remediation.worktree,
+    branch,
+    writeDenied: config.guard.writeDenied,
+    commandsDenied: config.guard.commandsDenied,
+    protectedBranches: config.guard.protectedBranches,
+    lang: i18n.code,
+    expires: expiry(config),
+  })
+
+  console.log(`BRANCH=${branch}`)
+  console.log(`BASE=${base}`)
+  console.log(`WORKTREE=${remediation.worktree}`)
+  console.log(`FINDINGS=${remediation.findings.join(',')}`)
+  console.log(t('fixReady', { branch, base, n: selected.length }))
+  for (const f of selected) console.log(`${f.id} [${f.severity}] ${f.title} — ${location(f)}`)
+}
+
+/** Reads the `remediation-F*.json` left by the remediators, and the branch's commits. */
+function cmdFixStatus() {
+  const dir = runDir(args[0])
+  const file = path.join(dir, 'remediation.json')
+  if (!existsSync(file)) fail(t('noRemediation', { run: args[0] }))
+  const rem = readJson(file)
+  const final = readJson(path.join(dir, 'final.json'))
+  const counts = { fixed: 0, skipped: 0, failed: 0, pending: 0 }
+  for (const id of rem.findings) {
+    const f = final.findings.find((x) => x.id === id) ?? { id, title: '?', severity: '?' }
+    const out = path.join(dir, `remediation-${id}.json`)
+    const result = existsSync(out) ? readJson(out) : { status: 'pending' }
+    const status = counts[result.status] != null ? result.status : 'failed'
+    counts[status]++
+    console.log(
+      `${id} [${f.severity}] ${f.title}: ${t(`status_${status}`)}${result.commit ? ` (${result.commit})` : ''}${result.reason ? ` — ${result.reason}` : ''}`
+    )
+  }
+  let commits = []
+  try {
+    commits = git(['log', '--oneline', `${rem.base}..${rem.branch}`], root)
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    // Branch removed since: the counts above still stand.
+  }
+  console.log(
+    t('fixSummary', {
+      ...counts,
+      commits: commits.length,
+      branch: rem.branch,
+      base: rem.base,
+      worktree: rem.worktree,
+    })
+  )
 }
 
 function cmdCheck() {
@@ -441,6 +638,42 @@ function cmdCheck() {
   const lines = []
   let failures = 0
   if (!config._hasFile) lines.push(t('noConfig'))
+  const reportFormat = reportFormatFor(config)
+  if (reportFormat.known)
+    lines.push(
+      t('reportFormatLine', {
+        format: reportFormat.format,
+        source: t(SOURCE_KEYS[reportFormat.source]),
+      })
+    )
+  else {
+    failures++
+    lines.push(
+      t('unsupportedReportFormat', {
+        value: reportFormat.value,
+        list: Object.keys(REPORT_FORMATS).join(', '),
+      })
+    )
+  }
+  const mode = modeFor(config)
+  if (mode.known)
+    lines.push(
+      t('modeLine', {
+        mode: mode.mode,
+        description: t(`mode_${mode.mode}`),
+        source: t(SOURCE_KEYS[mode.source]),
+      })
+    )
+  else {
+    failures++
+    lines.push(t('unsupportedMode', { value: mode.value, list: MODES.join(', ') }))
+  }
+  if (!SEVERITIES.includes(config.fixMinSeverity)) {
+    failures++
+    lines.push(
+      t('badFixMinSeverity', { value: config.fixMinSeverity, list: SEVERITIES.join(', ') })
+    )
+  }
   if (i18n.known)
     lines.push(t('languageLine', { name: i18n.name, code: i18n.code, source: languageSource() }))
   else {
@@ -579,6 +812,9 @@ const commands = {
   prepare: cmdPrepare,
   consolidate: cmdConsolidate,
   finalize: cmdFinalize,
+  select: cmdSelect,
+  fix: cmdFix,
+  'fix-status': cmdFixStatus,
   check: cmdCheck,
   language: cmdLanguage,
   guard: cmdGuard,
