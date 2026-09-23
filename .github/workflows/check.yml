@@ -14,3 +14,5 @@ jobs:
           node-version: 20
       - name: Shared modules and locale catalogs
         run: node scripts/sync-shared.mjs --check
+      - name: Scanner agent variants and /config rows
+        run: node scanner-plugin/scripts/generate.mjs --check

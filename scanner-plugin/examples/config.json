@@ -1,6 +1,8 @@
 {
   "language": "en",
   "mode": "review",
+  "model": "sonnet",
+  "effort": "medium",
   "fixMinSeverity": "low",
   "reports": "docs/scans",
   "reportFormat": "html",
@@ -12,7 +14,7 @@
   "batches": 4,
   "reportInstructions": "",
   "types": {
-    "security": { "requireReachability": true },
+    "security": { "model": "opus", "effort": "high", "requireReachability": true },
     "performance": { "exclusions": { "remove": ["docs/**"] } },
     "dead-code": { "exclusions": { "add": ["legacy/**"] } }
   },

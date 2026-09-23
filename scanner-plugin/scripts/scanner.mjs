@@ -5,24 +5,29 @@
 //   types                                   list available scan types
 //   profile <type>                          print the effective profile (JSON)
 //   prepare <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review]
+//           [--model <model>] [--effort <effort>]
 //   consolidate <run>                       findings-B*.json → findings.json + triage batches
 //   finalize <run>                          verdicts-T*.json → final.json + history
 //   select <run> [<selection>]              list the retained findings, resolve a selection
-//   fix <run> <selection>                   fix branch + worktree, remediation guard armed
+//   fix <run> <selection> [--model …] [--effort …]
+//                                           fix branch + worktree, remediation guard armed
 //   fix-status <run>                        what the remediators did, commits on the branch
 //   check                                   check profiles and config against the repo
 //   language [<code>]                       show the language, or set it in .scanner/config.json
+//   model [<type>|all] [--model …] [--effort …]  show the agents' model and effort, or set them
 //   guard status | off | remediate <run> <id>
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
+  AGENT_SETTINGS,
   CONFIG_FILE,
   MODES,
   REPORT_FORMATS,
   SEVERITIES,
   STATE_DIR,
+  agentSettingFor,
   availableTypes,
   git,
   i18nFor,
@@ -59,6 +64,7 @@ const SOURCE_KEYS = {
   env: 'sourceEnv',
   user: 'sourceUser',
   default: 'sourceDefault',
+  run: 'sourceRun',
 }
 const languageSource = () => t(SOURCE_KEYS[i18n.source])
 
@@ -72,6 +78,68 @@ function option(name, fallback = null) {
 function fail(message) {
   console.error(message)
   process.exit(1)
+}
+
+/** `args` without the `--name value` pairs listed. */
+function positional(names) {
+  const out = []
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--') && names.includes(args[i].slice(2))) {
+      if (args[i + 1] && !args[i + 1].startsWith('--')) i++
+    } else out.push(args[i])
+  }
+  return out
+}
+
+/**
+ * The model and effort of a type's agents, the `--model` / `--effort` arguments
+ * winning; an unsupported value fails. `recorded`: the values a scan ran with,
+ * which its fixes keep over the config.
+ */
+function agentsOf(config, type, recorded = null) {
+  const agents = {}
+  for (const setting of Object.keys(AGENT_SETTINGS)) {
+    const asked = option(setting)
+    const s =
+      typeof asked !== 'string' && recorded?.[setting]
+        ? { ...agentSettingFor(config, type, setting, recorded[setting]), source: 'run' }
+        : agentSettingFor(config, type, setting, typeof asked === 'string' ? asked : null)
+    if (!s.known)
+      fail(
+        t('badAgentSetting', {
+          setting: t(`setting_${setting}`),
+          value: s.raw,
+          list: AGENT_SETTINGS[setting].values.join(', '),
+        })
+      )
+    agents[setting] = s
+  }
+  return agents
+}
+
+/** `scanner:investigator`, or its variant at the chosen effort (`scanner:investigator-high`). */
+const agentName = (role, effort) =>
+  effort === 'inherit' ? `scanner:${role}` : `scanner:${role}-${effort}`
+
+function settingSource(s, setting) {
+  return s.source === 'arg'
+    ? t('sourceArgFlag', { flag: `--${setting}` })
+    : t(SOURCE_KEYS[s.source])
+}
+
+function printAgents(agents, roles) {
+  console.log(`MODEL=${agents.model.value}`)
+  console.log(`EFFORT=${agents.effort.value}`)
+  for (const role of roles)
+    console.log(`${role.toUpperCase()}=${agentName(role, agents.effort.value)}`)
+  console.log(
+    t('agentsAnnounce', {
+      model: agents.model.value,
+      modelSource: settingSource(agents.model, 'model'),
+      effort: agents.effort.value,
+      effortSource: settingSource(agents.effort, 'effort'),
+    })
+  )
 }
 
 function profileOf(config, type) {
@@ -187,6 +255,7 @@ function cmdPrepare() {
   const asked = option('mode')
   const mode = modeFor(config, typeof asked === 'string' ? asked : null)
   if (!mode.known) fail(t('badMode', { value: mode.value, list: MODES.join(', ') }))
+  const agents = agentsOf(config, type)
 
   const all = filesInScope(config, scope)
   const files = all.filter((f) => !matchGlob(f, profile.exclusions))
@@ -201,6 +270,8 @@ function cmdPrepare() {
     scope,
     deep,
     mode: mode.mode,
+    // Recorded so that the scan's fixes run with the same agents.
+    agents: { model: agents.model.value, effort: agents.effort.value },
     commit: git(['rev-parse', '--short', 'HEAD'], root).trim(),
     branch: git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim(),
     started: new Date().toISOString(),
@@ -236,6 +307,7 @@ function cmdPrepare() {
       source: t(SOURCE_KEYS[mode.source]),
     })
   )
+  printAgents(agents, ['investigator', 'triager', 'reporter'])
   console.log(
     t('profileLine', {
       type,
@@ -539,8 +611,13 @@ function cmdFix() {
   const config = readConfig(root)
   const dir = runDir(args[0])
   const final = readJson(path.join(dir, 'final.json'))
-  const selected = resolveSelection(config, final, args.slice(1).join(' '))
+  const spec = positional(Object.keys(AGENT_SETTINGS)).slice(1).join(' ')
+  const selected = resolveSelection(config, final, spec)
   if (!selected.length) fail(t('selectionEmpty', { run: final.run }))
+  // The scan's own agents, unless --model / --effort say otherwise.
+  const metaFile = path.join(dir, 'meta.json')
+  const recorded = existsSync(metaFile) ? readJson(metaFile).agents : null
+  const agents = agentsOf(config, final.type, recorded)
 
   const base = config.remediationBase ?? git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim()
   const stem = `${config.branchPrefix ?? 'fix/'}scan-${final.type}-${isoDay().YYYYMMDD}`
@@ -592,6 +669,7 @@ function cmdFix() {
   console.log(`BASE=${base}`)
   console.log(`WORKTREE=${remediation.worktree}`)
   console.log(`FINDINGS=${remediation.findings.join(',')}`)
+  printAgents(agents, ['remediator'])
   console.log(t('fixReady', { branch, base, n: selected.length }))
   for (const f of selected) console.log(`${f.id} [${f.severity}] ${f.title} — ${location(f)}`)
 }
@@ -694,6 +772,23 @@ function cmdCheck() {
           fingerprint: profile.fingerprint,
         })
       )
+    for (const setting of Object.keys(AGENT_SETTINGS)) {
+      const s = agentSettingFor(config, type, setting)
+      const label = t(`setting_${setting}`)
+      const source = settingSource(s, setting)
+      if (s.known) lines.push(t('agentSettingLine', { type, setting: label, value: s.value, source }))
+      else {
+        failures++
+        lines.push(
+          t('unsupportedAgentSetting', {
+            type,
+            setting: label,
+            value: s.raw,
+            list: AGENT_SETTINGS[setting].values.join(', '),
+          })
+        )
+      }
+    }
   }
 
   const check = config.check ?? {}
@@ -806,6 +901,82 @@ function cmdLanguage() {
   )
 }
 
+/**
+ * Without a value: the model and effort of every type's agents, and where they come
+ * from. With `--model` and/or `--effort`: writes them into .scanner/config.json, for
+ * one type (`types.<type>`) or, with `all`, for every type (top-level keys).
+ */
+const MODEL_USAGE = 'model [<type>|all] [--model <model>] [--effort <effort>]'
+
+function cmdModel() {
+  const config = readConfig(root)
+  const types = availableTypes(root, config)
+  const [target] = positional(Object.keys(AGENT_SETTINGS))
+  const wanted = {}
+  for (const setting of Object.keys(AGENT_SETTINGS)) {
+    const asked = option(setting)
+    if (asked === true) fail(t('usage', { syntax: MODEL_USAGE }))
+    if (typeof asked !== 'string') continue
+    const s = agentSettingFor(config, target ?? 'all', setting, asked)
+    if (!s.known)
+      fail(
+        t('badAgentSetting', {
+          setting: t(`setting_${setting}`),
+          value: asked,
+          list: AGENT_SETTINGS[setting].values.join(', '),
+        })
+      )
+    wanted[setting] = s.value
+  }
+
+  if (!Object.keys(wanted).length) {
+    for (const type of target && target !== 'all' ? [target] : types) {
+      if (!types.includes(type)) fail(t('unknownType', { type, list: types.join(', ') }))
+      const model = agentSettingFor(config, type, 'model')
+      const effort = agentSettingFor(config, type, 'effort')
+      console.log(
+        t('agentsTypeLine', {
+          type,
+          model: model.known ? model.value : `${model.raw} ✗`,
+          modelSource: settingSource(model, 'model'),
+          effort: effort.known ? effort.value : `${effort.raw} ✗`,
+          effortSource: settingSource(effort, 'effort'),
+        })
+      )
+    }
+    console.log(
+      t('agentsChoices', {
+        models: AGENT_SETTINGS.model.values.join(', '),
+        efforts: AGENT_SETTINGS.effort.values.join(', '),
+      })
+    )
+    return
+  }
+
+  if (!target) fail(t('usage', { syntax: MODEL_USAGE }))
+  if (target !== 'all' && !types.includes(target))
+    fail(t('unknownType', { type: target, list: types.join(', ') }))
+  const file = path.join(root, CONFIG_FILE)
+  const own = existsSync(file) ? readJson(file) : {}
+  // `inherit` removes the key: the setting then gives way to the next source.
+  const put = (object, setting) => {
+    if (wanted[setting] === 'inherit') delete object[setting]
+    else object[setting] = wanted[setting]
+  }
+  if (target === 'all') for (const setting of Object.keys(wanted)) put(own, setting)
+  else {
+    own.types = { ...own.types, [target]: { ...own.types?.[target] } }
+    for (const setting of Object.keys(wanted)) put(own.types[target], setting)
+    if (!Object.keys(own.types[target]).length) delete own.types[target]
+    if (!Object.keys(own.types).length) delete own.types
+  }
+  writeJson(file, own)
+  for (const [setting, v] of Object.entries(wanted))
+    console.log(
+      t('agentSettingSet', { setting: t(`setting_${setting}`), value: v, target, file: CONFIG_FILE })
+    )
+}
+
 const commands = {
   types: cmdTypes,
   profile: cmdProfile,
@@ -817,6 +988,7 @@ const commands = {
   'fix-status': cmdFixStatus,
   check: cmdCheck,
   language: cmdLanguage,
+  model: cmdModel,
   guard: cmdGuard,
 }
 

@@ -1,6 +1,6 @@
 ---
 description: Run a local scan with a profile (parallel investigation, adversarial triage, then a report, fixes on a new branch, or both with your confirmation in between)
-argument-hint: <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review]
+argument-hint: <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review] [--model <model>] [--effort <effort>]
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
@@ -22,20 +22,26 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
   in `.scanner/profiles/`), splits the scope into batches and **arms the guard**: during the
   scan, files excluded by the profile are unreadable and writes are limited to the run
   directory and the reports.
-- Note `RUN=`, `DIR=`, `LANG=` and `MODE=` in its output. Everything you say to the user from
-  now on is in the language `LANG=` names (`en`, `fr`, `es`, `de`). If it fails, show the
-  error and stop.
+- Note `RUN=`, `DIR=`, `LANG=`, `MODE=`, `MODEL=`, `INVESTIGATOR=`, `TRIAGER=` and `REPORTER=`
+  in its output. Everything you say to the user from now on is in the language `LANG=` names
+  (`en`, `fr`, `es`, `de`). If it fails, show the error and stop.
 - `MODE=` decides how the scan ends (the `--mode` argument, else `mode` in
   `.scanner/config.json`, else the **Scan mode** row of `/config`, else `report`):
   - `report` — the report, nothing else;
   - `fix` — no report: every retained finding is fixed on a new branch;
   - `review` — the report, then **the user chooses** the findings to fix, then they are fixed
     on a new branch.
+- `MODEL=` and the agent names carry the **model and reasoning effort** of this scan type's
+  agents (the `--model` / `--effort` arguments, else `.scanner/config.json`, else the type's
+  **Model** / **Effort** rows of `/config`, else `inherit`). Every agent of the scan is launched
+  under the name the script printed for its role (`scanner:investigator-high` carries the
+  effort `high`), with the Agent tool's `model` parameter set to `MODEL=` — **omit the
+  parameter when `MODEL=inherit`**. Never pick another model or effort yourself.
 
 ## 2. Investigate — in parallel
 
-In **a single message**, launch one `scanner:investigator` agent per batch listed, with this
-prompt:
+In **a single message**, launch one agent per batch listed — type `INVESTIGATOR=`
+(`scanner:investigator` or one of its effort variants), model `MODEL=` — with this prompt:
 
 ```
 DIR=<run directory>
@@ -51,7 +57,8 @@ triage batches. Note `TRIAGE_BATCHES=`. If it is empty, go to step 5.
 
 ## 4. Triage — in parallel
 
-In a single message, launch one `scanner:triager` agent per triage batch:
+In a single message, launch one agent per triage batch — type `TRIAGER=`,
+model `MODEL=`:
 
 ```
 DIR=<run directory>
@@ -67,7 +74,7 @@ persisting, resolved), archives the result. Note `FORMAT=` (`html` or `md`) and 
 
 In mode `fix`, skip this step: no report is written.
 
-Launch a `scanner:reporter` agent:
+Launch one agent — type `REPORTER=`, model `MODEL=`:
 
 ```
 DIR=<run directory>

@@ -1,6 +1,6 @@
 ---
 description: Fix one or several findings of a scan on a new fix branch, in an isolated worktree, following the profile's remediation guidance
-argument-hint: <run> <F3 | F1,F4 | high | >=medium | all>
+argument-hint: <run> <F3 | F1,F4 | high | >=medium | all> [--model <model>] [--effort <effort>]
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent
 ---
 
@@ -19,9 +19,13 @@ A **selection** is one or more tokens separated by commas or spaces: an id (`F3`
    the current branch), in a worktree under `.scanner/worktrees/<run>` — the user's working
    tree does not switch branches — and arms the remediation guard: denied paths and
    commands from `.scanner/config.json`, no commit or push on a protected branch. Note
-   `BRANCH=`, `WORKTREE=` and `FINDINGS=`. If it fails, show the error and stop.
+   `BRANCH=`, `WORKTREE=`, `FINDINGS=`, `MODEL=` and `REMEDIATOR=`. If it fails, show the
+   error and stop. The model and effort are the scan's own unless `--model` / `--effort` are
+   given.
 3. For each id of `FINDINGS=`, **one after the other** — they commit on the same branch —
-   launch a `scanner:remediator` agent (**without** `isolation`: the worktree already exists):
+   launch one agent of type `REMEDIATOR=` (`scanner:remediator` or one of its effort
+   variants), with the Agent tool's `model` parameter set to `MODEL=` — omitted when
+   `MODEL=inherit` — and **without** `isolation` (the worktree already exists):
 
    ```
    RUN_DIR=<absolute path of .scanner/runs/<run>>
