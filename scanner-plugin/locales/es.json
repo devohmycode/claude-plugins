@@ -33,9 +33,9 @@
   "configSays": " (la config indica {expected})",
   "toFix": "{n} punto(s) que corregir antes de escanear.",
   "consistent": "Los perfiles y la config son coherentes con el repositorio.",
-  "languageLine": "✓ idioma: {name} ({code})",
+  "languageLine": "✓ idioma: {name} ({code}), {source}",
   "unsupportedLanguage": "✗ idioma «{value}» no admitido ({list}): se usa el inglés",
-  "languageCurrent": "Idioma: {name} ({code}). Admitidos: {list}.",
+  "languageCurrent": "Idioma: {name} ({code}), {source}. Admitidos: {list}.",
   "languageSet": "Idioma establecido en {name} ({code}) en {file}.",
   "languageUnknown": "Idioma «{value}» no admitido. Admitidos: {list}.",
   "guardInactive": "Guardia inactiva.",
@@ -50,5 +50,9 @@
   "remCommand": "Corrección de {finding}: comando denegado por la config ({source}).",
   "remProtected": "Corrección de {finding}: la rama actual «{branch}» está protegida. Crea primero la rama de corrección.",
   "remPush": "Corrección de {finding}: push a una rama protegida.",
-  "forbiddenTrailer": "El último commit lleva una atribución prohibida ({list}). Elimínala con git commit --amend antes de continuar."
+  "forbiddenTrailer": "El último commit lleva una atribución prohibida ({list}). Elimínala con git commit --amend antes de continuar.",
+  "sourceProject": "desde .scanner/config.json",
+  "sourceEnv": "desde CLAUDE_PLUGINS_LANGUAGE",
+  "sourceUser": "desde /config",
+  "sourceDefault": "por defecto"
 }

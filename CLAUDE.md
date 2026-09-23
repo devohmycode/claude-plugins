@@ -11,11 +11,18 @@ The mechanism is shared; do not reinvent it in a plugin.
 - **Messages**: `<plugin>/locales/en.json` is the reference; `fr.json`, `es.json` and `de.json`
   carry exactly the same keys and the same `{placeholders}`. No user-facing string is written
   inline in a script: it goes through `t('key', { … })`.
-- **Option**: the plugin exposes a `language` option in its own project config (code `en` /
-  `fr` / `es` / `de`, or a language name), default `null`, passed to
-  `createI18n({ localesDir, language })`. When it is unset, `CLAUDE_PLUGINS_LANGUAGE` applies,
-  then English. A plugin with a user-facing command also offers a command to show or set it
-  (see `scanner-plugin/commands/language.md`).
+- **Option**: the language is chosen, first match wins, from
+  1. the plugin's per-project `language` option, default `null`, passed to
+     `createI18n({ localesDir, language })`;
+  2. `CLAUDE_PLUGINS_LANGUAGE` (every plugin at once);
+  3. the plugin's **Language** row in Claude Code's `/config` panel: `userConfig.language` in
+     `.claude-plugin/plugin.json`, which `sync-shared.mjs` writes and `--check` enforces. The
+     engine reads it itself (hook environment, else the user `settings.json`);
+  4. English.
+
+  A plugin with a user-facing command also offers a command to show or set the per-project
+  value (see `scanner-plugin/commands/language.md`).
+
 - **Agents and prompts**: hand the agents `i18n.englishName` (e.g. `French`) and tell them to
   write their prose in it; generated HTML uses `i18n.code` for `<html lang>`. Identifiers that
   other code compares (JSON enum values, slugs, fingerprints, `KEY=value` machine lines) stay
@@ -26,7 +33,8 @@ The mechanism is shared; do not reinvent it in a plugin.
 ### Adding a plugin
 
 1. Create `<name>-plugin/` and list it in `.claude-plugin/marketplace.json`.
-2. `node scripts/sync-shared.mjs` — copies the engine and creates empty `locales/*.json`.
+2. `node scripts/sync-shared.mjs` — copies the engine, creates empty `locales/*.json` and
+   declares `userConfig.language` in the manifest.
 3. Fill `locales/en.json`, then its three translations (correct accents and typography:
    `« … »` in French, `«…»` in Spanish, `„…“` in German).
 4. `node scripts/sync-shared.mjs --check` must pass (CI runs it on every push and pull

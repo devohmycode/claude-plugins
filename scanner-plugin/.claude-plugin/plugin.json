@@ -9,5 +9,14 @@
   "homepage": "https://github.com/devohmycode/claude-plugins/tree/main/scanner-plugin",
   "repository": "https://github.com/devohmycode/claude-plugins",
   "license": "MIT",
-  "keywords": ["scan", "audit", "security", "performance", "accessibility", "dead-code", "coverage", "code-review"]
+  "keywords": ["scan", "audit", "security", "performance", "accessibility", "dead-code", "coverage", "code-review"],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).",
+      "options": ["en", "fr", "es", "de"],
+      "default": "en"
+    }
+  }
 }

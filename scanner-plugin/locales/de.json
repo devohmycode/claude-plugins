@@ -33,9 +33,9 @@
   "configSays": " (laut Config {expected})",
   "toFix": "{n} Punkt(e) vor dem Scan zu beheben.",
   "consistent": "Profile und Config stimmen mit dem Repository überein.",
-  "languageLine": "✓ Sprache: {name} ({code})",
+  "languageLine": "✓ Sprache: {name} ({code}), {source}",
   "unsupportedLanguage": "✗ Sprache „{value}“ wird nicht unterstützt ({list}): Englisch wird verwendet",
-  "languageCurrent": "Sprache: {name} ({code}). Unterstützt: {list}.",
+  "languageCurrent": "Sprache: {name} ({code}), {source}. Unterstützt: {list}.",
   "languageSet": "Sprache auf {name} ({code}) gesetzt in {file}.",
   "languageUnknown": "Sprache „{value}“ wird nicht unterstützt. Unterstützt: {list}.",
   "guardInactive": "Wächter inaktiv.",
@@ -50,5 +50,9 @@
   "remCommand": "Behebung von {finding}: Befehl durch die Config abgelehnt ({source}).",
   "remProtected": "Behebung von {finding}: Der aktuelle Branch „{branch}“ ist geschützt. Erstelle zuerst den Fix-Branch.",
   "remPush": "Behebung von {finding}: Push auf einen geschützten Branch.",
-  "forbiddenTrailer": "Der letzte Commit enthält eine verbotene Zuschreibung ({list}). Entferne sie mit git commit --amend, bevor du weitermachst."
+  "forbiddenTrailer": "Der letzte Commit enthält eine verbotene Zuschreibung ({list}). Entferne sie mit git commit --amend, bevor du weitermachst.",
+  "sourceProject": "aus .scanner/config.json",
+  "sourceEnv": "aus CLAUDE_PLUGINS_LANGUAGE",
+  "sourceUser": "aus /config",
+  "sourceDefault": "Standard"
 }

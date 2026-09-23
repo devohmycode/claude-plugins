@@ -33,9 +33,9 @@
   "configSays": " (la config indique {expected})",
   "toFix": "{n} point(s) à corriger avant de scanner.",
   "consistent": "Profils et config sont cohérents avec le dépôt.",
-  "languageLine": "✓ langue : {name} ({code})",
+  "languageLine": "✓ langue : {name} ({code}), {source}",
   "unsupportedLanguage": "✗ langue « {value} » non prise en charge ({list}) : l'anglais est utilisé",
-  "languageCurrent": "Langue : {name} ({code}). Prises en charge : {list}.",
+  "languageCurrent": "Langue : {name} ({code}), {source}. Prises en charge : {list}.",
   "languageSet": "Langue réglée sur {name} ({code}) dans {file}.",
   "languageUnknown": "Langue « {value} » non prise en charge. Prises en charge : {list}.",
   "guardInactive": "Garde inactive.",
@@ -50,5 +50,9 @@
   "remCommand": "Remédiation de {finding} : commande refusée par la config ({source}).",
   "remProtected": "Remédiation de {finding} : la branche courante « {branch} » est protégée. Créez d'abord la branche de correction.",
   "remPush": "Remédiation de {finding} : push vers une branche protégée.",
-  "forbiddenTrailer": "Le dernier commit porte une attribution interdite ({list}). Retirez-la avec git commit --amend avant de continuer."
+  "forbiddenTrailer": "Le dernier commit porte une attribution interdite ({list}). Retirez-la avec git commit --amend avant de continuer.",
+  "sourceProject": "depuis .scanner/config.json",
+  "sourceEnv": "depuis CLAUDE_PLUGINS_LANGUAGE",
+  "sourceUser": "depuis /config",
+  "sourceDefault": "par défaut"
 }

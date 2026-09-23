@@ -121,11 +121,19 @@ the summaries given in the conversation. Machine lines (`RUN=`, `DIR=`, `REPORT=
 and verdict identifiers in the JSON files, and rule slugs stay in English, so fingerprints do
 not depend on the language.
 
-- per project: `/scanner:language fr`, or `"language": "fr"` in `.scanner/config.json`
-  (a code, or a name such as `French` / `Français`);
-- for every plugin of this marketplace at once: the `CLAUDE_PLUGINS_LANGUAGE` environment
-  variable, used when the project sets no language;
-- an unsupported value falls back to English, and `/scanner:check` flags it with `✗`.
+First match wins:
+
+1. per project: `/scanner:language fr`, or `"language": "fr"` in `.scanner/config.json`
+   (a code, or a name such as `French` / `Français`) — committed, so the team's reports share
+   one language;
+2. for every plugin of this marketplace at once: the `CLAUDE_PLUGINS_LANGUAGE` environment
+   variable;
+3. for you, in every project: the **Language** row of the scanner in `/config` (Claude Code
+   v2.1.271 or later), stored in your user `settings.json`;
+4. English.
+
+`/scanner:language` and `/scanner:check` say which source applies. An unsupported value falls
+back to English, and `/scanner:check` flags it with `✗`.
 
 Messages live in `locales/<code>.json`; `scripts/i18n.mjs` is a copy of the repository's
 shared engine (`shared/i18n/`), not to be edited here.

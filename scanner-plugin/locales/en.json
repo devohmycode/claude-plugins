@@ -33,9 +33,9 @@
   "configSays": " (config says {expected})",
   "toFix": "{n} point(s) to fix before scanning.",
   "consistent": "Profiles and config are consistent with the repository.",
-  "languageLine": "✓ language: {name} ({code})",
+  "languageLine": "✓ language: {name} ({code}), {source}",
   "unsupportedLanguage": "✗ language \"{value}\" is not supported ({list}): English is used",
-  "languageCurrent": "Language: {name} ({code}). Supported: {list}.",
+  "languageCurrent": "Language: {name} ({code}), {source}. Supported: {list}.",
   "languageSet": "Language set to {name} ({code}) in {file}.",
   "languageUnknown": "Unsupported language \"{value}\". Supported: {list}.",
   "guardInactive": "Guard inactive.",
@@ -50,5 +50,9 @@
   "remCommand": "Remediation of {finding}: command denied by the config ({source}).",
   "remProtected": "Remediation of {finding}: the current branch \"{branch}\" is protected. Create the fix branch first.",
   "remPush": "Remediation of {finding}: push to a protected branch.",
-  "forbiddenTrailer": "The last commit carries a forbidden attribution ({list}). Remove it with git commit --amend before going on."
+  "forbiddenTrailer": "The last commit carries a forbidden attribution ({list}). Remove it with git commit --amend before going on.",
+  "sourceProject": "from .scanner/config.json",
+  "sourceEnv": "from CLAUDE_PLUGINS_LANGUAGE",
+  "sourceUser": "from /config",
+  "sourceDefault": "default"
 }

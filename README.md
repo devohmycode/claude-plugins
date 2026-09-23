@@ -31,9 +31,10 @@ scripts/sync-shared.mjs           copies shared modules into the plugins, checks
 
 ## Languages
 
-Every plugin speaks English by default, and French, Spanish or German on request: through
-its own `language` option, or for all plugins at once with the `CLAUDE_PLUGINS_LANGUAGE`
-environment variable (`en`, `fr`, `es`, `de`). See [CLAUDE.md](CLAUDE.md) for the rules a
+Every plugin speaks English by default, and French, Spanish or German on request. Pick the
+language in Claude Code's `/config` panel (each plugin has a **Language** row), per project
+through the plugin's own `language` option, or for all plugins at once with the
+`CLAUDE_PLUGINS_LANGUAGE` environment variable (`en`, `fr`, `es`, `de`). See [CLAUDE.md](CLAUDE.md) for the rules a
 new plugin follows, and run `node scripts/sync-shared.mjs --check` before committing.
 
 ## Releasing a new version

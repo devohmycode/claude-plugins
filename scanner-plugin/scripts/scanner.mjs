@@ -45,6 +45,13 @@ const i18n = (() => {
   }
 })()
 const t = i18n.t
+const SOURCE_KEYS = {
+  project: 'sourceProject',
+  env: 'sourceEnv',
+  user: 'sourceUser',
+  default: 'sourceDefault',
+}
+const languageSource = () => t(SOURCE_KEYS[i18n.source])
 
 function option(name, fallback = null) {
   const i = args.indexOf(`--${name}`)
@@ -434,7 +441,8 @@ function cmdCheck() {
   const lines = []
   let failures = 0
   if (!config._hasFile) lines.push(t('noConfig'))
-  if (i18n.known) lines.push(t('languageLine', { name: i18n.name, code: i18n.code }))
+  if (i18n.known)
+    lines.push(t('languageLine', { name: i18n.name, code: i18n.code, source: languageSource() }))
   else {
     failures++
     lines.push(t('unsupportedLanguage', { value: i18n.value, list: SUPPORTED.join(', ') }))
@@ -544,7 +552,14 @@ function cmdLanguage() {
   if (!value) {
     if (!i18n.known)
       console.log(t('unsupportedLanguage', { value: i18n.value, list: SUPPORTED.join(', ') }))
-    console.log(t('languageCurrent', { name: i18n.name, code: i18n.code, list }))
+    console.log(
+      t('languageCurrent', {
+        name: i18n.name,
+        code: i18n.code,
+        source: languageSource(),
+        list,
+      })
+    )
     return
   }
   const { code, known } = resolveLanguage(value)

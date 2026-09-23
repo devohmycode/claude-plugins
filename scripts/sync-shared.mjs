@@ -2,9 +2,11 @@
 // Copies the shared modules into every plugin of the marketplace and checks
 // their catalogs. A plugin is installed alone, so each one ships its own copy.
 //
-//   node scripts/sync-shared.mjs           write the copies, create missing locale files
-//   node scripts/sync-shared.mjs --check   change nothing; exit 1 if a copy is stale,
-//                                          a locale file is missing or a catalog is incomplete
+//   node scripts/sync-shared.mjs           write the copies, create missing locale files,
+//                                          declare the /config language field in plugin.json
+//   node scripts/sync-shared.mjs --check   change nothing; exit 1 if a copy is stale, a locale
+//                                          file is missing, a catalog is incomplete, or the
+//                                          manifest lacks the language field
 //
 // Plugins are read from .claude-plugin/marketplace.json: a new plugin is covered
 // as soon as it is listed there.
@@ -12,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SUPPORTED, checkCatalogs } from '../shared/i18n/i18n.mjs'
+import { SUPPORTED, USER_CONFIG_FIELD, checkCatalogs } from '../shared/i18n/i18n.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const check = process.argv.includes('--check')
@@ -47,6 +49,23 @@ for (const { name, dir } of plugins) {
       mkdirSync(path.dirname(file), { recursive: true })
       writeFileSync(file, expected, 'utf8')
       console.log(`↻ ${name}: ${target}`)
+    }
+  }
+
+  // The language field of /config: `userConfig.language` in the manifest.
+  const manifestFile = path.join(dir, '.claude-plugin', 'plugin.json')
+  if (!existsSync(manifestFile)) report(name, '.claude-plugin/plugin.json is missing')
+  else {
+    const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+    const field = manifest.userConfig?.language
+    if (JSON.stringify(field) !== JSON.stringify(USER_CONFIG_FIELD)) {
+      if (check)
+        report(name, `plugin.json: userConfig.language is ${field ? 'outdated' : 'missing'}`)
+      else {
+        manifest.userConfig = { ...manifest.userConfig, language: USER_CONFIG_FIELD }
+        writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n', 'utf8')
+        console.log(`↻ ${name}: .claude-plugin/plugin.json (userConfig.language)`)
+      }
     }
   }
 

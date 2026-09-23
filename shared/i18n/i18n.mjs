@@ -8,19 +8,28 @@
 // The engine holds no message: each plugin keeps its catalogs in
 // <plugin>/locales/<code>.json, `en.json` being the reference.
 //
-// Language choice, first match wins:
-//   1. the value the plugin passes (its own `language` option);
-//   2. the CLAUDE_PLUGINS_LANGUAGE environment variable (all plugins at once);
-//   3. English.
+// Language choice, first match wins (`source` in the result says which):
+//   1. `project` — the value the plugin passes (its per-project `language` option);
+//   2. `env`     — the CLAUDE_PLUGINS_LANGUAGE environment variable (all plugins);
+//   3. `user`    — the plugin's `language` field in Claude Code's /config panel,
+//                  declared as `userConfig.language` in .claude-plugin/plugin.json.
+//                  Hooks receive it as CLAUDE_PLUGIN_OPTION_LANGUAGE; other processes
+//                  (scripts run by a command) read it from the user settings.json,
+//                  `pluginConfigs["<plugin>@<marketplace>"].options.language`;
+//   4. `default` — English.
+// The /config field always holds a value (its default is `en`), which is why the
+// environment variable comes before it: otherwise it could never apply.
 // A value is a code (`en`, `fr`, `es`, `de`, `fr-FR`…) or a language name in
 // English, French, Spanish or German (`French`, `Français`, `francés`…).
 // An unsupported value falls back to English and is reported as `known: false`.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 
 export const DEFAULT_LANGUAGE = 'en'
 export const ENV_VAR = 'CLAUDE_PLUGINS_LANGUAGE'
+export const USER_OPTION_ENV = 'CLAUDE_PLUGIN_OPTION_LANGUAGE'
 
 /** Per code: English name (for agents and prompts), native name (for the user), aliases. */
 export const LANGUAGES = {
@@ -59,10 +68,47 @@ export function resolveLanguage(value) {
   return { code: DEFAULT_LANGUAGE, known: false }
 }
 
-/** Applies the precedence above: the plugin's own value, then the environment, then English. */
-export function pickLanguage(own, env = process.env) {
-  const value = own ?? env[ENV_VAR] ?? null
-  return { value, ...resolveLanguage(value) }
+/** The `userConfig.language` field every plugin declares, so that it shows in /config. */
+export const USER_CONFIG_FIELD = {
+  type: 'string',
+  title: 'Language',
+  description: 'Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).',
+  options: SUPPORTED,
+  default: DEFAULT_LANGUAGE,
+}
+
+/**
+ * The plugin's /config value: the hook environment first, then the user
+ * settings.json (a script run through Bash does not get the variable).
+ * `pluginDir` is the plugin root, whose manifest gives the plugin name.
+ */
+export function userLanguage(pluginDir, env = process.env) {
+  if (env[USER_OPTION_ENV]) return env[USER_OPTION_ENV]
+  if (!pluginDir) return null
+  try {
+    const manifest = path.join(pluginDir, '.claude-plugin', 'plugin.json')
+    const { name } = JSON.parse(readFileSync(manifest, 'utf8'))
+    const dir = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    const { pluginConfigs = {} } = JSON.parse(readFileSync(path.join(dir, 'settings.json'), 'utf8'))
+    const id = Object.keys(pluginConfigs).find((k) => k === name || k.startsWith(`${name}@`))
+    return pluginConfigs[id]?.options?.language ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Applies the precedence above. */
+export function pickLanguage(own, { env = process.env, pluginDir = null } = {}) {
+  const candidates = [
+    ['project', own],
+    ['env', env[ENV_VAR]],
+    ['user', userLanguage(pluginDir, env)],
+  ]
+  const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
+    'default',
+    null,
+  ]
+  return { value, source, ...resolveLanguage(value) }
 }
 
 const catalogCache = new Map()
@@ -87,13 +133,13 @@ function readCatalog(localesDir, code) {
  *
  *   const i18n = createI18n({ localesDir, language: config.language })
  *   i18n.t('key', { name: 'value' })   // placeholders are {name}
- *   i18n.code / i18n.name / i18n.englishName / i18n.known / i18n.value
+ *   i18n.code / i18n.name / i18n.englishName / i18n.known / i18n.value / i18n.source
  *
  * A key missing from the chosen catalog falls back to English, then to the key
  * itself. Values are inserted in a single pass: braces inside a value are kept.
  */
 export function createI18n({ localesDir, language } = {}) {
-  const picked = pickLanguage(language)
+  const picked = pickLanguage(language, { pluginDir: localesDir && path.dirname(localesDir) })
   const catalog = readCatalog(localesDir, picked.code)
   const reference = readCatalog(localesDir, DEFAULT_LANGUAGE)
   const t = (key, vars = {}) =>
