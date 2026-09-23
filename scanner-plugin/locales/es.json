@@ -76,5 +76,16 @@
   "status_skipped": "no corregido",
   "status_failed": "fallido",
   "status_pending": "no alcanzado",
-  "fixSummary": "{fixed} corregido(s), {skipped} no corregido(s), {failed} fallido(s), {pending} no alcanzado(s) — {commits} commit(s) en {branch} (base {base}). Worktree: {worktree}"
+  "fixSummary": "{fixed} corregido(s), {skipped} no corregido(s), {failed} fallido(s), {pending} no alcanzado(s) — {commits} commit(s) en {branch} (base {base}). Worktree: {worktree}",
+  "sourceArgFlag": "desde el argumento {flag}",
+  "sourceRun": "como en el escaneo",
+  "badAgentSetting": "{setting} «{value}» desconocido ({list}).",
+  "agentsAnnounce": "Agentes: modelo {model} ({modelSource}), esfuerzo {effort} ({effortSource}).",
+  "agentSettingLine": "✓ {type}: {setting} {value}, {source}",
+  "unsupportedAgentSetting": "✗ {type}: {setting} «{value}» no admitido ({list}): se usa inherit",
+  "agentsTypeLine": "{type}: modelo {model} ({modelSource}), esfuerzo {effort} ({effortSource})",
+  "agentsChoices": "Modelos: {models}. Esfuerzos: {efforts}. inherit: los de la sesión.",
+  "agentSettingSet": "Para {target}, {setting}: {value}, escrito en {file}.",
+  "setting_model": "modelo",
+  "setting_effort": "esfuerzo"
 }

@@ -76,5 +76,16 @@
   "status_skipped": "not fixed",
   "status_failed": "failed",
   "status_pending": "not reached",
-  "fixSummary": "{fixed} fixed, {skipped} not fixed, {failed} failed, {pending} not reached — {commits} commit(s) on {branch} (base {base}). Worktree: {worktree}"
+  "fixSummary": "{fixed} fixed, {skipped} not fixed, {failed} failed, {pending} not reached — {commits} commit(s) on {branch} (base {base}). Worktree: {worktree}",
+  "sourceArgFlag": "from the {flag} argument",
+  "sourceRun": "as for the scan",
+  "badAgentSetting": "Unknown {setting} \"{value}\" ({list}).",
+  "agentsAnnounce": "Agents: model {model} ({modelSource}), effort {effort} ({effortSource}).",
+  "agentSettingLine": "✓ {type}: {setting} {value}, {source}",
+  "unsupportedAgentSetting": "✗ {type}: {setting} \"{value}\" is not supported ({list}): inherit is used",
+  "agentsTypeLine": "{type}: model {model} ({modelSource}), effort {effort} ({effortSource})",
+  "agentsChoices": "Models: {models}. Efforts: {efforts}. inherit: the session's own.",
+  "agentSettingSet": "For {target}, {setting}: {value}, written to {file}.",
+  "setting_model": "model",
+  "setting_effort": "effort"
 }

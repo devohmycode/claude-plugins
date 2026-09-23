@@ -76,5 +76,16 @@
   "status_skipped": "nicht behoben",
   "status_failed": "fehlgeschlagen",
   "status_pending": "nicht erreicht",
-  "fixSummary": "{fixed} behoben, {skipped} nicht behoben, {failed} fehlgeschlagen, {pending} nicht erreicht — {commits} Commit(s) auf {branch} (Basis {base}). Worktree: {worktree}"
+  "fixSummary": "{fixed} behoben, {skipped} nicht behoben, {failed} fehlgeschlagen, {pending} nicht erreicht — {commits} Commit(s) auf {branch} (Basis {base}). Worktree: {worktree}",
+  "sourceArgFlag": "aus dem Argument {flag}",
+  "sourceRun": "wie beim Scan",
+  "badAgentSetting": "Unbekannter Wert für {setting}: „{value}“ ({list}).",
+  "agentsAnnounce": "Agenten: Modell {model} ({modelSource}), Aufwand {effort} ({effortSource}).",
+  "agentSettingLine": "✓ {type}: {setting} {value}, {source}",
+  "unsupportedAgentSetting": "✗ {type}: {setting} „{value}“ wird nicht unterstützt ({list}): inherit wird verwendet",
+  "agentsTypeLine": "{type}: Modell {model} ({modelSource}), Aufwand {effort} ({effortSource})",
+  "agentsChoices": "Modelle: {models}. Aufwand: {efforts}. inherit: die der Sitzung.",
+  "agentSettingSet": "Für {target}, {setting}: {value}, in {file} geschrieben.",
+  "setting_model": "Modell",
+  "setting_effort": "Aufwand"
 }

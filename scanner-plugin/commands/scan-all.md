@@ -1,6 +1,6 @@
 ---
 description: Run every available scan type, one after the other, after checking the profiles
-argument-hint: [--scope full|diff|<path>] [--mode report|fix|review]
+argument-hint: [--scope full|diff|<path>] [--mode report|fix|review] [--model <model>] [--effort <effort>]
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
@@ -17,7 +17,8 @@ type.
 3. For each type, **one after the other** (the guard holds one scan at a time, each with its
    own exclusions), follow the `/scanner:scan` procedure with `<type> $ARGUMENTS`, steps 1 to 7:
    prepare, investigate in parallel, consolidate, triage in parallel, finalize, report
-   (unless `MODE=fix`), guard off.
+   (unless `MODE=fix`), guard off. Each type has its own model and effort (the `MODEL=` and
+   agent-name lines of its `prepare`), unless `--model` / `--effort` set them for all.
 4. Then, by mode (the `MODE=` line, identical for every type):
    - `report`: nothing more.
    - `fix`: for each type with retained findings, one after the other, steps 8 and 9 of
@@ -31,6 +32,7 @@ type.
    table, new and resolved findings per type, the report paths, and for each fix branch its
    `fix-status` counts and worktree. Never push, never open a pull request: only offer to.
 
-Before starting, announce the number of types and batches planned, and the mode: it is the
+Before starting, announce the number of types and batches planned, the mode, and each
+type's model and effort (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scanner.mjs" model`): it is the
 order of magnitude of the cost — in mode `fix` or `review`, each fixed finding adds one
 agent.

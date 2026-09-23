@@ -62,11 +62,12 @@ committed.
 | Command                                                      | Role                                                                                      |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `/scanner:check`                                             | Checks profiles, overlays and config against the repository. Run it before scanning.      |
-| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep] [--mode …]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches. `--mode`: see [Scan modes](#scan-modes). |
+| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep] [--mode …]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches. `--mode`: see [Scan modes](#scan-modes). `--model`, `--effort`: see [Agents](#agents-model-and-effort). |
 | `/scanner:scan-all [--scope …] [--mode …]`                   | Check, then one scan per type, sequentially.                                              |
 | `/scanner:remediate <run> <selection>`                       | Fixes the selected findings on one new fix branch, in a worktree; commits, never pushes.  |
 | `/scanner:guard [status\|off]`                               | Shows or lifts the guard (after an interrupted scan).                                     |
 | `/scanner:language [en\|fr\|es\|de]`                         | Shows or sets the plugin language (see below).                                            |
+| `/scanner:model [<type>\|all] [--model …] [--effort …]`     | Shows or sets the model and effort of each type's agents: see [Agents](#agents-model-and-effort). |
 
 ## How a scan runs
 
@@ -118,6 +119,35 @@ already exists — created from `remediationBase` in a worktree under `.scanner/
 finding, one after the other, one commit each; `scanner.mjs fix-status <run>` tells which
 were fixed, declined (with the reason), failed or not reached. Nothing is pushed. Remove the
 worktree once the branch is merged: `git worktree remove .scanner/worktrees/<run>`.
+
+## Agents: model and effort
+
+Each scan type has its own **model** and **reasoning effort**, used by all of its agents:
+investigators, triagers, reporter and remediators. `inherit` (the default) imposes nothing:
+the agents run with the session's model and effort.
+
+- model: `inherit`, `haiku`, `sonnet`, `opus`, `fable`;
+- effort: `inherit`, `low`, `medium`, `high`, `xhigh`, `max`.
+
+First match wins, per type and per setting:
+
+1. for one run: `--model opus --effort high` on `/scanner:scan`, `/scanner:scan-all` or
+   `/scanner:remediate` (a scan's fixes otherwise keep the scan's own values);
+2. per project and per type: `types.<type>.model` / `types.<type>.effort` in
+   `.scanner/config.json` — `/scanner:model security --model opus --effort high` writes them;
+3. per project, every type: top-level `model` / `effort` — `/scanner:model all --model sonnet`;
+4. for you, in every project: the **Model — <type>** and **Effort — <type>** rows of the
+   scanner in `/config` (built-in types only; an overlay-only type uses 1 to 3);
+5. `inherit`.
+
+`/scanner:model` without options shows every type's values and where they come from;
+`/scanner:check` shows them too and flags an unsupported value with `✗`.
+
+The model is passed to each agent when it is launched. The effort cannot be — Claude Code
+reads it from the agent's definition only — so every agent also ships in one variant per
+effort (`agents/investigator-high.md`…), which the scan launches instead of the base agent.
+These variants and the `/config` rows are **generated**: edit `agents/<agent>.md` or add a
+profile, then run `node scanner-plugin/scripts/generate.mjs` (CI runs it with `--check`).
 
 ## The guard (hooks)
 
@@ -195,10 +225,11 @@ See `examples/config.json`. Keys:
 - `mode` — `report` (default), `fix` or `review`: see [Scan modes](#scan-modes);
   `fixMinSeverity` (`low`) — the lowest severity that `all` selects;
 - `reportFormat` — `html` (default) or `md`: see [Report format](#report-format);
+- `model`, `effort` — for every type: see [Agents](#agents-model-and-effort);
 - `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
   `reportInstructions` (passed to the reporter);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
-- `types.<type>`: `enabled`, `requireReachability` (default: `security` only),
+- `types.<type>`: `enabled`, `model`, `effort`, `requireReachability` (default: `security` only),
   `exclusions.add` / `exclusions.remove`;
 - `check`: `constants` (names that must still exist in code), `libraries.present` /
   `libraries.absent` (checked in `package.json`), `counts` (`label`, `glob`, `expected`),

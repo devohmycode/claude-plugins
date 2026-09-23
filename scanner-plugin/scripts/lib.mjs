@@ -52,11 +52,29 @@ const MODE_ALIASES = {
   confirm: 'review',
 }
 
+/**
+ * Model and reasoning effort of a scan's agents (investigators, triagers, reporter,
+ * remediators), per scan type. `inherit`: the session's own, nothing is imposed.
+ */
+export const AGENT_SETTINGS = {
+  model: {
+    values: ['inherit', 'haiku', 'sonnet', 'opus', 'fable'],
+    aliases: { default: 'inherit', session: 'inherit' },
+  },
+  effort: {
+    values: ['inherit', 'low', 'medium', 'high', 'xhigh', 'max'],
+    aliases: { default: 'inherit', session: 'inherit', 'extra-high': 'xhigh', med: 'medium' },
+  },
+}
+
 export const DEFAULT_CONFIG = {
   // null: CLAUDE_PLUGINS_LANGUAGE, then English (see i18n.mjs).
   language: null,
   // null: the scanner's "Scan mode" row in /config, then report.
   mode: null,
+  // null: `types.<type>.model` / `.effort`, then the type's rows in /config, then inherit.
+  model: null,
+  effort: null,
   // Lowest severity that `all` selects for a fix (info is left out by default).
   fixMinSeverity: 'low',
   reports: 'docs/scans',
@@ -163,6 +181,36 @@ export function modeFor(config, override = null) {
   return mode
     ? { mode, source, value, known: true }
     : { mode: DEFAULT_MODE, source, value, known: false }
+}
+
+/** The /config row of a type's setting: `security_model`, `dead_code_effort`… */
+export const agentOptionKey = (type, setting) => `${type.replace(/[^a-z0-9]+/gi, '_')}_${setting}`
+
+/**
+ * The model or effort (`setting`) of a type's agents, first match wins: the
+ * `--model` / `--effort` argument, `types.<type>.<setting>` in the project config,
+ * `<setting>` in the project config (every type), the type's row in /config,
+ * inherit. `known` is false for an unsupported value (inherit is then used);
+ * `source` is arg, project, user or default.
+ */
+export function agentSettingFor(config, type, setting, override = null) {
+  const { values, aliases } = AGENT_SETTINGS[setting]
+  const candidates = [
+    ['arg', override],
+    ['project', config.types?.[type]?.[setting]],
+    ['project', config[setting]],
+    ['user', userOption(PLUGIN_ROOT, agentOptionKey(type, setting))],
+  ]
+  const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
+    'default',
+    null,
+  ]
+  if (value == null) return { value: 'inherit', source, raw: value, known: true }
+  const raw = String(value).trim().toLowerCase()
+  const resolved = values.includes(raw) ? raw : aliases[raw]
+  return resolved
+    ? { value: resolved, source, raw: value, known: true }
+    : { value: 'inherit', source, raw: value, known: false }
 }
 
 export function writeJson(file, value) {
