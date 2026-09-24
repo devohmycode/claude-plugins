@@ -177,6 +177,12 @@ one scan at a time, hence the sequential `scan-all`. It expires after `guard.ttl
 <reports>/<reportName>            the report (.html or .md)
 ```
 
+`final.json` follows the **findings contract** shared by the plugins of this marketplace
+(`scripts/findings.mjs`, a copy of `shared/findings/findings.mjs`): the
+[tracker](../tracker-plugin/) plugin reads it to open GitHub issues for the findings, keep them
+in line with the next scans (a finding `resolved` by a full scan closes its issue) and fix them
+in batches.
+
 ## Language
 
 English by default; French, Spanish and German are also available. The language covers the

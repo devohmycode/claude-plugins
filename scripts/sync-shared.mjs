@@ -20,7 +20,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const check = process.argv.includes('--check')
 
 /** Shared module → path of its copy inside each plugin. */
-const SHARED = [{ source: 'shared/i18n/i18n.mjs', target: 'scripts/i18n.mjs' }]
+const SHARED = [
+  { source: 'shared/i18n/i18n.mjs', target: 'scripts/i18n.mjs' },
+  { source: 'shared/findings/findings.mjs', target: 'scripts/findings.mjs' },
+]
 
 const header = (source) =>
   `// GENERATED from ${source} by scripts/sync-shared.mjs — do not edit this copy.\n`

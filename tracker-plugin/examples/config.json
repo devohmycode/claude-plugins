@@ -1,0 +1,72 @@
+{
+  "language": "fr",
+  "sources": {
+    "scannerRuns": ".scanner/runs",
+    "scannerHistory": ".scanner/history",
+    "reports": "docs/rapports",
+    "suffix": ".constats.json"
+  },
+  "minSeverity": "low",
+  "labels": {
+    "axis": "axe: {axis}",
+    "severity": "sévérité: {severity}",
+    "priority": "priorité: {priority}",
+    "source": { "scan": "scan local {DD}/{MM}", "audit": "audit {DD}/{MM}" }
+  },
+  "names": {
+    "axis": {
+      "security": "sécurité",
+      "stability": "stabilité",
+      "performance": "performance",
+      "features": "fonctionnalités",
+      "ci-deploy": "ci-déploiement",
+      "data": "données",
+      "backups": "sauvegardes",
+      "accessibility": "accessibilité",
+      "architecture": "architecture",
+      "tests": "qualité-tests"
+    },
+    "severity": { "critical": "critique", "high": "élevée", "medium": "moyenne", "low": "faible" }
+  },
+  "priority": {
+    "byAxis": {
+      "tests": { "critical": "P1", "high": "P2", "medium": "P3", "low": "P3" },
+      "architecture": { "critical": "P1", "high": "P2", "medium": "P3", "low": "P3" }
+    }
+  },
+  "title": {
+    "template": "{prefix} : {ref}{title}",
+    "lowercaseFirst": true,
+    "prefixByAxis": {
+      "security": "fix(sécurité)",
+      "stability": "fix(stabilité)",
+      "performance": "perf",
+      "features": "fix",
+      "ci-deploy": "ci",
+      "data": "fix(données)",
+      "backups": "fix(sauvegardes)",
+      "accessibility": "a11y",
+      "architecture": "chore(code mort)",
+      "tests": "test"
+    }
+  },
+  "triage": { "max": 15, "relabel": true, "commentOnHolds": false },
+  "batch": {
+    "base": "developpement",
+    "prBase": "developpement",
+    "branchPrefix": "fix/",
+    "perBatch": 5,
+    "groupBy": "area",
+    "setup": ["pnpm install --frozen-lockfile"],
+    "checks": ["pnpm typecheck", "pnpm lint"],
+    "draft": true
+  },
+  "guard": {
+    "writeDenied": ["content/**", "data/**/*.json", "docs/_site/**", "supabase/migrations/_archive/**"],
+    "commandsDenied": ["\\bpnpm\\s+(run\\s+)?format\\b", "\\bgit\\s+add\\s+(-A|--all|\\.)(\\s|$)", "--no-verify"],
+    "protectedBranches": ["main"]
+  },
+  "commits": {
+    "forbiddenTrailers": ["^Co-authored-by:", "^Claude-Session:", "Generated with", "noreply@anthropic\\.com"]
+  }
+}

@@ -16,3 +16,7 @@ jobs:
         run: node scripts/sync-shared.mjs --check
       - name: Scanner agent variants and /config rows
         run: node scanner-plugin/scripts/generate.mjs --check
+      - name: Tracker agent variants and /config rows
+        run: node tracker-plugin/scripts/generate.mjs --check
+      - name: Tracker tests
+        run: node --test tests/tracker/*.test.mjs
