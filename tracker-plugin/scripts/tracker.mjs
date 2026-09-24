@@ -339,6 +339,9 @@ function cmdOpen() {
   for (const { finding, issue } of links) {
     const body = `${String(issue.body ?? '').trimEnd()}\n\n${linkLine(finding, t)}\n`
     gh(['issue', 'edit', String(issue.number), '--body-file', '-'], { cwd: root, input: body })
+    // Several findings may be linked to the same issue: the next edit must start from
+    // this body, not from the one read at the start, or it would drop this line.
+    issue.body = body
     console.log(t('linked', { ref: finding.label, number: issue.number }))
   }
   if (!fresh.length) return
