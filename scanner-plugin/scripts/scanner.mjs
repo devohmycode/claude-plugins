@@ -514,6 +514,17 @@ function cmdFinalize() {
     report: reportPath(config, meta.type, REPORT_FORMATS[reportFormat.format]),
   }
   writeJson(path.join(dir, 'final.json'), final)
+  // Investigation and triage are over: the reporter may now read the existing reports
+  // (to follow their layout) and whatever `reportAccess` opens.
+  const state = readState(root)
+  if (state?.mode === 'scan' && state.run === meta.run) {
+    const access = config.reportAccess ?? {}
+    writeJson(stateFile(root), {
+      ...state,
+      readAllowed: [`${config.reports}/**`, ...(access.read ?? [])],
+      writeAllowed: [...(state.writeAllowed ?? []), ...(access.write ?? [])],
+    })
+  }
   if (full) writeJson(path.join(root, config.history, `${meta.run}.json`), final)
 
   console.log(

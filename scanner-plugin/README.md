@@ -234,6 +234,10 @@ See `examples/config.json`. Keys:
 - `model`, `effort` — for every type: see [Agents](#agents-model-and-effort);
 - `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
   `reportInstructions` (passed to the reporter);
+- `reportAccess` — `read` / `write` globs opened to the reporter once the scan is finalized,
+  even if the profile excludes them. The `reports` directory is always readable then, so the
+  reporter can follow the existing reports' layout; add e.g. `"read": ["docs/**"]` for a
+  style guide, `"write": ["docs/index.html"]` to let it register the report;
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
 - `types.<type>`: `enabled`, `model`, `effort`, `requireReachability` (default: `security` only),
   `exclusions.add` / `exclusions.remove`;

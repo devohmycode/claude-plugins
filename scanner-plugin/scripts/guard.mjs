@@ -83,7 +83,10 @@ function duringScan(state, root, tool, input) {
   if (READ_TOOLS.has(tool)) {
     const rel = relativeTo(root, targetPath(input))
     const glob = rel ? matchGlob(rel, state.exclusions ?? []) : null
-    if (glob) deny(t('excludedRead', { rel, type: state.type, glob }))
+    // Once the scan is finalized, the reporter may read what `reportAccess.read`
+    // opens (the existing reports, their registry) even when the profile excludes it.
+    if (glob && !matchGlob(rel, state.readAllowed ?? []))
+      deny(t('excludedRead', { rel, type: state.type, glob }))
     return
   }
   if (WRITE_TOOLS.has(tool)) {
