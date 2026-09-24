@@ -33,7 +33,8 @@ The mechanism is shared; do not reinvent it in a plugin.
 ### Adding a plugin
 
 1. Create `<name>-plugin/` and list it in `.claude-plugin/marketplace.json`.
-2. `node scripts/sync-shared.mjs` — copies the engine, creates empty `locales/*.json` and
+2. `node scripts/sync-shared.mjs` — copies the shared modules (the i18n engine and the findings
+   contract `shared/findings/findings.mjs`), creates empty `locales/*.json` and
    declares `userConfig.language` in the manifest.
 3. Fill `locales/en.json`, then its three translations (correct accents and typography:
    `« … »` in French, `«…»` in Spanish, `„…“` in German).

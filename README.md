@@ -7,6 +7,7 @@ A [Claude Code](https://code.claude.com) plugin marketplace.
 ```
 /plugin marketplace add devohmycode/claude-plugins
 /plugin install scanner@devohmycode-plugins
+/plugin install tracker@devohmycode-plugins
 ```
 
 Update later with `/plugin marketplace update devohmycode-plugins`.
@@ -15,7 +16,8 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
 
 | Plugin | Version | Description |
 | --- | --- | --- |
-| [scanner](scanner-plugin/) | 0.3.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
+| [scanner](scanner-plugin/) | 0.5.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
+| [tracker](tracker-plugin/) | 0.1.0 | The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans, triage them against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch. |
 
 ## Layout
 
@@ -26,6 +28,8 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
   locales/{en,fr,es,de}.json      the plugin's messages
   scripts/i18n.mjs                generated copy of shared/i18n/i18n.mjs
 shared/i18n/i18n.mjs              language engine shared by every plugin
+shared/findings/findings.mjs      findings contract: what the scanner writes and the tracker reads
+tests/                            node --test suites (node --test tests/tracker/*.test.mjs)
 scripts/sync-shared.mjs           copies shared modules into the plugins, checks catalogs
 ```
 
