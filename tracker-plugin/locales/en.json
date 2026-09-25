@@ -86,6 +86,8 @@
   "pushed": "Branch {branch} pushed.",
   "reopened": "#{number} reopened",
   "runNotFound": "No run {run} in .tracker/runs/.",
+  "selectionCut": "{total} issues match, {kept} kept (--max {max}) — left out: {list}. Widen --max or narrow the selection.",
+  "selectionCutAtLeast": "At least {total} issues match, {kept} kept (--max {max}) — left out: {list}. Widen --max or narrow the selection.",
   "selectionNone": "The selection matches no open issue.",
   "selectorEmpty": "Name the issues: numbers, label:<name>, priority:P1, severity:high, axis:security, triage:<run> or all.",
   "skipClosed": "#{number} is closed: left out.",

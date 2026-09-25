@@ -86,6 +86,8 @@
   "pushed": "Rama {branch} subida.",
   "reopened": "#{number} reabierta",
   "runNotFound": "No hay run {run} en .tracker/runs/.",
+  "selectionCut": "{total} issues coinciden, {kept} conservadas (--max {max}) — descartadas: {list}. Amplíe --max o acote la selección.",
+  "selectionCutAtLeast": "Al menos {total} issues coinciden, {kept} conservadas (--max {max}) — descartadas: {list}. Amplíe --max o acote la selección.",
   "selectionNone": "La selección no corresponde a ninguna issue abierta.",
   "selectorEmpty": "Indicar las issues: números, label:<nombre>, priority:P1, severity:high, axis:security, triage:<run> o all.",
   "skipClosed": "#{number} está cerrada: descartada.",

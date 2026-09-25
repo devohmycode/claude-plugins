@@ -149,6 +149,11 @@ export function sortIssues(config, issues) {
   )
 }
 
+/** Keeps the first `max` of sorted issues and says which ones were left out, never silently. */
+export function capSelection(issues, max) {
+  return { kept: issues.slice(0, max), dropped: issues.slice(max).map((i) => i.number) }
+}
+
 // ─── Batches ────────────────────────────────────────────────────────────────
 
 /** `app/api/persons/route.ts:12` → `app/api`; a file at the root → `(root)`. */

@@ -86,6 +86,8 @@
   "pushed": "Branch {branch} gepusht.",
   "reopened": "#{number} wieder geöffnet",
   "runNotFound": "Kein Run {run} in .tracker/runs/.",
+  "selectionCut": "{total} Issues passen, {kept} behalten (--max {max}) — ausgelassen: {list}. Erhöhen Sie --max oder grenzen Sie die Auswahl ein.",
+  "selectionCutAtLeast": "Mindestens {total} Issues passen, {kept} behalten (--max {max}) — ausgelassen: {list}. Erhöhen Sie --max oder grenzen Sie die Auswahl ein.",
   "selectionNone": "Die Auswahl trifft kein offenes Issue.",
   "selectorEmpty": "Die Issues benennen: Nummern, label:<Name>, priority:P1, severity:high, axis:security, triage:<run> oder all.",
   "skipClosed": "#{number} ist geschlossen: ausgelassen.",

@@ -64,6 +64,7 @@ import {
   writeJson,
 } from './lib.mjs'
 import {
+  capSelection,
   decideTriage,
   groupBatches,
   needsCheck,
@@ -471,6 +472,7 @@ function selectIssues(tokens, max) {
     for (const d of readJson(file).decisions) if (d.final === 'holds') sel.numbers.push(d.number)
   }
   let issues = []
+  let limit = Infinity
   if (sel.numbers.length) {
     for (const n of [...new Set(sel.numbers)]) {
       const issue = JSON.parse(gh(['issue', 'view', String(n), '--json', ISSUE_FIELDS], { cwd: root }))
@@ -478,11 +480,21 @@ function selectIssues(tokens, max) {
       else issues.push(issue)
     }
   } else if (sel.labels.length || Object.keys(sel.facets).length || sel.all) {
-    const argv = ['issue', 'list', '--state', 'open', '--limit', String(Math.max(max, 1) * 4), '--json', ISSUE_FIELDS]
+    limit = Math.max(max, 1) * 4
+    const argv = ['issue', 'list', '--state', 'open', '--limit', String(limit), '--json', ISSUE_FIELDS]
     for (const l of [...sel.labels, ...facetLabels(sel.facets)]) argv.push('--label', l)
     issues = JSON.parse(gh(argv, { cwd: root }))
   } else fail(t('selectorEmpty'), 2)
-  return sortIssues(config, issues).slice(0, max)
+  const { kept, dropped } = capSelection(sortIssues(config, issues), max)
+  if (dropped.length) {
+    const shown = dropped.slice(0, 20).map((n) => `#${n}`)
+    if (dropped.length > shown.length) shown.push('…')
+    // gh stops at --limit: past it, the count is only a lower bound.
+    const key = issues.length >= limit ? 'selectionCutAtLeast' : 'selectionCut'
+    console.log(t(key, { total: issues.length, kept: kept.length, max, list: shown.join(', ') }))
+    console.log(`DROPPED=${dropped.join(',')}`)
+  }
+  return kept
 }
 
 /** What an agent needs to know about an issue, written into the run directory. */

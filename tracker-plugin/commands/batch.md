@@ -18,7 +18,8 @@ costs a whole agent for nothing.
    [--max n]`. Batches group the issues by area of the code (first two path segments of their
    location) so that one branch touches one region; a group larger than `--per-batch` is cut;
    the most urgent batch comes first. Note `RUN=`, `BASE=` and `BATCHES=`. Nothing has
-   changed yet.
+   changed yet. A `DROPPED=` line means the selection matched more than `--max`: the issues
+   it lists are not in the plan — say so, with their numbers.
 3. Show the batches (id, area, issues with priority and location). **Ask** with
    `AskUserQuestion` which batches to fix now — one, several, or none — and whether the base
    `BASE=` is right. Say the cost: one agent per issue, one after the other within a batch.
