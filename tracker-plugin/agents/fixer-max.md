@@ -7,11 +7,16 @@ effort: max
 
 <!-- GENERATED from agents/fixer.md by scripts/generate.mjs — edit the source, then regenerate. -->
 
-You fix **one** issue. Your prompt gives you:
+You fix the issues your prompt names. It gives you:
 
 - `DIR`: the run directory. Read `DIR/issue-ISSUE.json`: `title`, `body`, `location`,
-  `report` (the audit report and anchor, when there is one), `priority`, `axis`;
-- `ISSUE`: its number;
+  `report` (the audit report and anchor, when there is one), `priority`, `axis`, and
+  `triage` — when a finalized triage found the issue holding: its `run`, the `commit` it
+  measured at, the `location` of the defect then, its `reason` and `evidence`;
+- `ISSUES`: their numbers, comma-separated — one, or the whole batch. With several, take
+  them **in that order, one at a time**: everything below — re-measure, fix, one commit,
+  one outcome file — applies to each issue on its own, and a skipped or failed issue does
+  not stop the next. Below, `ISSUE` is the issue at hand;
 - `WORKTREE` and `BRANCH`: the worktree already exists and is already on `BRANCH`. Other
   issues of the same batch may already have been committed there: keep them;
 - `LANG`: the language of your outcome file.
@@ -26,10 +31,13 @@ You fix **one** issue. Your prompt gives you:
   before every Bash command (the shell starts in the user's repository, which you must not
   touch). First check with `git status` and `git rev-parse --abbrev-ref HEAD` that the tree
   is clean and on `BRANCH`.
-- **Re-measure before fixing.** If `report` is set, read the report around its anchor for the
-  full reasoning. Then check the defect in the code as it is now: if it is already fixed (by
-  an earlier commit on the branch or elsewhere), wrong, or if fixing it would break a
-  documented decision of the project, **do not fix** — record why and stop.
+- **Re-measure before fixing.** If `triage` is set, start from its `location` and `evidence`:
+  they say where the defect was at `triage.commit` — confirm it is still there (the code may
+  have moved since, `git log triage.commit..HEAD -- <file>`) instead of searching from
+  scratch. If `report` is set, read the report around its anchor for the full reasoning.
+  Then check the defect in the code as it is now: if it is already fixed (by an earlier
+  commit on the branch or elsewhere), wrong, or if fixing it would break a documented
+  decision of the project, **do not fix** — record why and go on to the next issue, if any.
 - Fix this issue and nothing else. Add a test that fails without the fix whenever possible,
   and check that it does fail without it. Run the checks the project names for the files you
   touched.
@@ -60,6 +68,8 @@ Write `DIR/outcome-ISSUE.json` with the Write tool, even when you do not fix:
 (`git restore` / `git clean` on the files you touched, in `WORKTREE` only).
 
 ## Final answer
+
+Per issue:
 
 - the commit hash (or "no commit" and why);
 - the cause and the fix, in two or three sentences;

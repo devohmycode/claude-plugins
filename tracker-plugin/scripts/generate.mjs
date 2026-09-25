@@ -12,7 +12,7 @@
 
 import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { AGENT_SETTINGS, PLUGIN_ROOT, ROLES, agentOptionKey } from './lib.mjs'
+import { AGENT_SETTINGS, PLUGIN_ROOT, ROLES, ROLE_DEFAULTS, agentOptionKey } from './lib.mjs'
 
 const check = process.argv.includes('--check')
 const EFFORTS = AGENT_SETTINGS.effort.values.filter((e) => e !== 'inherit')
@@ -83,19 +83,20 @@ const { userConfig = {} } = manifest
 const isAgentKey = (key) => /_(model|effort)$/.test(key)
 const rows = Object.fromEntries(Object.entries(userConfig).filter(([k]) => !isAgentKey(k)))
 for (const role of ROLES) {
+  const def = (setting) => ROLE_DEFAULTS[role]?.[setting] ?? 'inherit'
   rows[agentOptionKey(role, 'model')] = {
     type: 'string',
     title: `Model — ${role}`,
-    description: `Model of the ${role} agents: inherit (the session's model), haiku, sonnet, opus or fable.`,
+    description: `Model of the ${role} agents: inherit (the session's model), haiku, sonnet, opus or fable. Default: ${def('model')}.`,
     options: AGENT_SETTINGS.model.values,
-    default: 'inherit',
+    default: def('model'),
   }
   rows[agentOptionKey(role, 'effort')] = {
     type: 'string',
     title: `Effort — ${role}`,
-    description: `Reasoning effort of the ${role} agents: inherit (the session's effort), low, medium, high, xhigh or max.`,
+    description: `Reasoning effort of the ${role} agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: ${def('effort')}.`,
     options: AGENT_SETTINGS.effort.values,
-    default: 'inherit',
+    default: def('effort'),
   }
 }
 const updated = { ...manifest, userConfig: rows }

@@ -213,6 +213,25 @@ export const slug = (text) =>
 
 export const VERDICTS = ['holds', 'fixed', 'obsolete', 'unclear']
 
+/** The issues each triager agent takes: grouped by area, at most `perAgent` per agent. */
+export function triageGroups(config, issues, perAgent = 1) {
+  return groupBatches(config, issues, { groupBy: 'area', perBatch: perAgent, max: Infinity }).map((b) =>
+    b.issues.map((i) => i.number)
+  )
+}
+
+/**
+ * The point since which an unchanged file means the issue still holds: the last triage
+ * that found it holding, else the commit the finding was measured at, else the day the
+ * issue was opened. Null when nothing dates it.
+ */
+export function triageReference(issue, lastHolds = null) {
+  if (lastHolds?.commit) return { kind: 'triage', ref: lastHolds.commit, run: lastHolds.run }
+  if (issue.commit) return { kind: 'commit', ref: issue.commit }
+  if (issue.createdAt) return { kind: 'date', ref: issue.createdAt }
+  return null
+}
+
 /** The verdicts a skeptic must confirm before an issue is closed. */
 export const needsCheck = (verdict) => verdict?.verdict === 'fixed' || verdict?.verdict === 'obsolete'
 
@@ -235,6 +254,7 @@ export function decideTriage(config, issues, verdicts, checks) {
       location: v?.location ?? null,
       suggestedPriority: v?.priority ?? null,
       commit: v?.commit ?? null,
+      auto: v?.auto ?? null,
       check: null,
       actions: [],
     }

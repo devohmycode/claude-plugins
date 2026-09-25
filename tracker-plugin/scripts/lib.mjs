@@ -16,6 +16,15 @@ export const LOCALES_DIR = path.join(PLUGIN_ROOT, 'locales')
 /** The agents of the plugin, whose model and effort can be set. */
 export const ROLES = ['triager', 'skeptic', 'fixer']
 
+/**
+ * What a role runs on when nothing sets it: a triager re-measures one issue, a job a
+ * lighter model does well; the skeptic, who guards every closing, and the fixer, who
+ * writes code, keep the session's.
+ */
+export const ROLE_DEFAULTS = {
+  triager: { model: 'sonnet', effort: 'medium' },
+}
+
 export const AGENT_SETTINGS = {
   model: {
     values: ['inherit', 'haiku', 'sonnet', 'opus', 'fable'],
@@ -93,6 +102,12 @@ export const DEFAULT_CONFIG = {
     relabel: true,
     // Comment "still holds at <commit>" on the issues that still hold.
     commentOnHolds: false,
+    // An issue whose file has not changed since it was opened (or since a triage found
+    // it holding) is decided `holds` by the script, without an agent. --full overrides.
+    skipUnchanged: true,
+    // Issues per triager agent, grouped by area of the code: above 1, the code they
+    // share is read once. Skeptics stay one per issue.
+    perAgent: 1,
   },
   batch: {
     // null: the current branch.
@@ -104,6 +119,9 @@ export const DEFAULT_CONFIG = {
     max: 30,
     // area (first two path segments of the location), axis, or none.
     groupBy: 'area',
+    // issue: one fixer agent per issue; batch: one fixer for the whole batch, still
+    // one commit per issue — the batch's code is read once.
+    fixer: 'issue',
     // Run in the batch worktree before the fixers (e.g. a frozen install).
     setup: [],
     // Run in the batch worktree once the fixers are done.
@@ -187,7 +205,7 @@ export const agentOptionKey = (role, setting) => `${role}_${setting}`
 /**
  * Model or effort of a role's agents, first match wins: the argument,
  * `roles.<role>.<setting>` in the project config, `<setting>` in the project config,
- * the role's row in /config, inherit.
+ * the role's row in /config, the role's default (`ROLE_DEFAULTS`), inherit.
  */
 export function agentSettingFor(config, role, setting, override = null) {
   const { values, aliases } = AGENT_SETTINGS[setting]
@@ -196,6 +214,7 @@ export function agentSettingFor(config, role, setting, override = null) {
     ['project', config.roles?.[role]?.[setting]],
     ['project', config[setting]],
     ['user', userOption(PLUGIN_ROOT, agentOptionKey(role, setting))],
+    ['default', ROLE_DEFAULTS[role]?.[setting]],
   ]
   const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
     'default',
@@ -448,6 +467,14 @@ export function locationIn(body) {
   const onLine = (s) => s?.match(/`([^`\s#]+\.[A-Za-z0-9]+(?::\d+(?:-\d+)?)?)`/)?.[1] ?? null
   const inText = (s) => s?.match(/`([^`\s]+\/[^`\s]+?(?::\d+(?:-\d+)?)?)`/)?.[1] ?? null
   return onLine(line) ?? inText(text.replace(/`[^`]*#[^`]*`/g, ''))
+}
+
+/** The commit the finding was measured at, from the footer (`at commit \`abc1234\``), if any. */
+export function commitIn(body) {
+  // The footer only: the Source line above it carries hex fingerprints too.
+  const text = String(body ?? '')
+  const at = text.lastIndexOf('\n---\n')
+  return at < 0 ? null : (text.slice(at).match(/`([0-9a-f]{7,40})`/)?.[1] ?? null)
 }
 
 /** The report the Source line points to (`docs/…html#anchor`), if any. */

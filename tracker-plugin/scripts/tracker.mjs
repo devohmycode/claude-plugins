@@ -7,12 +7,12 @@
 //   open <source…> [--min-severity s] [--only a,b] [--link ref=12,…] [--apply] [--json]
 //   sync [<source…>] [--only 12,15] [--close-only|--reopen-only] [--apply] [--json]
 //   select <selector…> [--max n]                resolve a selection of issues
-//   triage prepare <selector…> [--max n] [--model …] [--effort …]
+//   triage prepare <selector…> [--max n] [--per-agent n] [--full] [--model …] [--effort …]
 //   triage verify <run>                         which verdicts a skeptic must check
 //   triage finalize <run>                       verdicts + checks → decisions
 //   triage apply <run> [--only 12,15]           carry the decisions out on GitHub
-//   batch plan <selector…|triage:<run>> [--per-batch n] [--group area|axis|none] [--max n]
-//   batch start <run> <B1> [--model …] [--effort …]   branch + worktree, guard armed
+//   batch plan <selector…|triage:<run>> [--per-batch n] [--group area|axis|none] [--max n] [--fixer issue|batch]
+//   batch start <run> <B1> [--fixer …] [--model …] [--effort …]   branch + worktree, guard armed
 //   batch checks <run> <B1>                     run the project's checks in the worktree
 //   batch status <run> [<B1>]                   outcomes, commits, checks
 //   batch finish <run> <B1> [--push] [--pr]     push the branch, open the pull request
@@ -39,6 +39,7 @@ import {
   agentOf,
   agentSettingFor,
   bodyOf,
+  commitIn,
   dateTokens,
   expiry,
   fill,
@@ -74,6 +75,8 @@ import {
   slug,
   sortFindings,
   sortIssues,
+  triageGroups,
+  triageReference,
 } from './plan.mjs'
 
 const root = projectRoot()
@@ -91,7 +94,7 @@ const RUNS = path.join(root, STATE_DIR, 'runs')
 
 // ─── Arguments ──────────────────────────────────────────────────────────────
 
-const VALUE_OPTIONS = ['min-severity', 'only', 'link', 'max', 'model', 'effort', 'per-batch', 'group']
+const VALUE_OPTIONS = ['min-severity', 'only', 'link', 'max', 'model', 'effort', 'per-batch', 'group', 'fixer', 'per-agent']
 
 function option(name, fallback = null) {
   const i = args.indexOf(`--${name}`)
@@ -223,7 +226,7 @@ function cmdSources() {
 
 // ─── Issues and labels ──────────────────────────────────────────────────────
 
-const ISSUE_FIELDS = 'number,state,closedAt,title,body,labels'
+const ISSUE_FIELDS = 'number,state,createdAt,closedAt,title,body,labels'
 
 function allIssues() {
   return JSON.parse(
@@ -497,8 +500,12 @@ function selectIssues(tokens, max) {
   return kept
 }
 
-/** What an agent needs to know about an issue, written into the run directory. */
-function issueRecord(issue) {
+/**
+ * What an agent needs to know about an issue, written into the run directory. With
+ * `triage`, the last finalized triage that found it holding: where the defect is and
+ * what showed it, so that a fixer starts from there instead of searching again.
+ */
+function issueRecord(issue, { triage = false } = {}) {
   return {
     number: issue.number,
     title: issue.title,
@@ -508,6 +515,103 @@ function issueRecord(issue) {
     location: locationIn(issue.body),
     report: reportIn(issue.body),
     keys: keysInBody(issue.body),
+    commit: commitIn(issue.body),
+    createdAt: issue.createdAt ?? null,
+    ...(triage ? { triage: lastHolds(issue.number) } : {}),
+  }
+}
+
+let triageRuns
+/** Finalized triage runs, newest first. */
+function finalizedTriages() {
+  if (!triageRuns)
+    triageRuns = existsSync(RUNS)
+      ? readdirSync(RUNS)
+          .filter((r) => r.startsWith('triage-') && existsSync(path.join(RUNS, r, 'final.json')))
+          .sort()
+          .reverse()
+      : []
+  return triageRuns
+}
+
+/**
+ * The newest finalized triage that found an issue holding, with the evidence behind it;
+ * null when none did, or when a newer one found it fixed or obsolete.
+ */
+function lastHolds(number) {
+  for (const run of finalizedTriages()) {
+    const dir = path.join(RUNS, run)
+    let final
+    try {
+      final = readJson(path.join(dir, 'final.json'))
+    } catch {
+      continue
+    }
+    const d = final.decisions?.find((x) => x.number === number)
+    if (!d || d.final === 'unclear' || d.final === 'untriaged') continue
+    if (d.final !== 'holds') return null
+    // A skeptic who disagreed carries the evidence the decision stands on.
+    const source = readIfExists(path.join(dir, `${d.check === 'disagree' ? 'check' : 'verdict'}-${number}.json`))
+    return {
+      run,
+      commit: final.commit ?? null,
+      reason: d.reason ?? null,
+      location: d.location ?? null,
+      evidence: source?.evidence ?? [],
+      auto: d.auto ?? null,
+    }
+  }
+  return null
+}
+
+/**
+ * Whether `file` is the same now as at the reference point: true, false, or null when
+ * git cannot tell (unknown commit, no history). Uncommitted edits count as a change.
+ */
+function unchangedSince(file, reference) {
+  try {
+    if (git(['status', '--porcelain', '--', file], root).trim()) return false
+    if (reference.kind === 'date')
+      return !git(['log', '-1', '--format=%h', `--since=${reference.ref}`, 'HEAD', '--', file], root).trim()
+    git(['cat-file', '-e', `${reference.ref}^{commit}`], root)
+  } catch {
+    return null
+  }
+  try {
+    git(['diff', '--quiet', reference.ref, 'HEAD', '--', file], root)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The verdict the script writes itself for an issue whose file has not moved; else null. */
+function unchangedVerdict(record) {
+  if (!record.location) return null
+  const file = record.location.replace(/:\d+(?:-\d+)?$/, '')
+  if (!existsSync(path.join(root, file))) return null
+  const reference = triageReference(record, lastHolds(record.number))
+  if (!reference || unchangedSince(file, reference) !== true) return null
+  const since =
+    reference.kind === 'triage'
+      ? t('sinceTriage', { run: reference.run, commit: reference.ref })
+      : reference.kind === 'commit'
+        ? t('sinceCommit', { commit: reference.ref })
+        : t('sinceDate', { date: humanDate(reference.ref, i18n.code) })
+  const how =
+    reference.kind === 'date'
+      ? `git log --since=${reference.ref} HEAD -- ${file} → no commit`
+      : `git diff ${reference.ref} HEAD -- ${file} → no difference`
+  return {
+    number: record.number,
+    verdict: 'holds',
+    auto: 'unchanged',
+    reason: t('unchangedReason', { file, since }),
+    location: record.location,
+    commit: null,
+    priority: null,
+    evidence: [how, 'git status -- ' + file + ' → clean'],
+    since,
   }
 }
 
@@ -570,7 +674,20 @@ function triagePrepare() {
   if (!issues.length) fail(t('selectionNone'))
   const run = `triage-${timestamp()}`
   const dir = path.join(RUNS, run)
-  for (const issue of issues) writeJson(path.join(dir, `issue-${issue.number}.json`), issueRecord(issue))
+  const shortcut = config.triage.skipUnchanged && !flag('full')
+  const unchanged = []
+  const toAgents = []
+  for (const issue of issues) {
+    const record = issueRecord(issue)
+    writeJson(path.join(dir, `issue-${issue.number}.json`), record)
+    const verdict = shortcut ? unchangedVerdict(record) : null
+    if (verdict) {
+      writeJson(path.join(dir, `verdict-${issue.number}.json`), verdict)
+      unchanged.push(verdict)
+    } else toAgents.push(issue)
+  }
+  const perAgent = Math.max(1, Number(option('per-agent', config.triage.perAgent)) || 1)
+  const groups = triageGroups(config, toAgents, perAgent)
   const meta = {
     run,
     created: new Date().toISOString(),
@@ -588,7 +705,12 @@ function triagePrepare() {
   console.log(`ISSUES=${meta.issues.join(',')}`)
   printAgent('triager', { model: option('model'), effort: option('effort') })
   printAgent('skeptic', { model: option('model'), effort: option('effort') })
-  for (const i of issues) console.log(`  #${i.number} ${i.title.slice(0, 90)}`)
+  for (const i of toAgents) console.log(`  #${i.number} ${i.title.slice(0, 90)}`)
+  for (const v of unchanged) console.log(`  ${t('unchangedLine', { number: v.number, since: v.since })}`)
+  console.log(`UNCHANGED=${unchanged.map((v) => v.number).join(',')}`)
+  for (const g of groups) console.log(`GROUP=${g.join(',')}`)
+  console.log(`AGENTS=${groups.length}`)
+  console.log(t('triageCost', { agents: groups.length, n: toAgents.length, unchanged: unchanged.length }))
 }
 
 function readVerdicts(dir, prefix) {
@@ -699,9 +821,11 @@ function batchPlan() {
     perBatch: Number(option('per-batch', config.batch.perBatch)),
     max,
   })
+  const fixer = fixerScope(option('fixer', config.batch.fixer))
   const run = `batch-${timestamp()}`
   const dir = path.join(RUNS, run)
-  for (const issue of issues) writeJson(path.join(dir, `issue-${issue.number}.json`), issueRecord(issue))
+  for (const issue of issues)
+    writeJson(path.join(dir, `issue-${issue.number}.json`), issueRecord(issue, { triage: true }))
   const base = config.batch.base ?? currentBranch()
   writeJson(path.join(dir, 'plan.json'), {
     run,
@@ -709,6 +833,7 @@ function batchPlan() {
     base,
     commit: headCommit(),
     language: i18n.englishName,
+    fixer,
     batches: batches.map((b) => ({
       id: b.id,
       group: b.group,
@@ -722,6 +847,17 @@ function batchPlan() {
     for (const i of b.issues) console.log(`    #${i.number} ${i.priority ?? '--'} ${i.title.slice(0, 80)}${i.location ? ` — ${i.location}` : ''}`)
   }
   console.log(`BATCHES=${batches.map((b) => b.id).join(',')}`)
+  const agents = fixer === 'batch' ? batches.length : issues.length
+  console.log(`FIXER_SCOPE=${fixer}`)
+  console.log(`AGENTS=${agents}`)
+  console.log(t('batchCost', { agents, n: issues.length, scope: t(`fixerScope_${fixer}`) }))
+}
+
+/** `issue` (one fixer per issue) or `batch` (one fixer per batch). */
+function fixerScope(value) {
+  const v = String(value ?? 'issue').trim().toLowerCase()
+  if (v !== 'issue' && v !== 'batch') fail(t('badFixerScope', { value }), 2)
+  return v
 }
 
 function batchOf(dir, id) {
@@ -752,6 +888,7 @@ function batchStart() {
   const dir = runDir(run)
   const { plan, batch, file } = batchOf(dir, id)
   if (existsSync(file)) fail(t('batchStarted', { id, run }))
+  const scope = fixerScope(option('fixer', plan.fixer ?? config.batch.fixer))
   const stem = `${config.batch.branchPrefix}tracker-${slug(batch.group)}-${dateTokens().YYYY}${dateTokens().MM}${dateTokens().DD}`
   let branch = stem
   for (let n = 2; branchExists(branch); n++) branch = `${stem}-${n}`
@@ -799,9 +936,10 @@ function batchStart() {
   console.log(`BASE=${plan.base}`)
   console.log(`WORKTREE=${record.worktree}`)
   console.log(`ISSUES=${record.issues.join(',')}`)
+  console.log(`FIXER_SCOPE=${scope}`)
   console.log(`LANG=${i18n.englishName}`)
   printAgent('fixer', { model: option('model'), effort: option('effort') })
-  console.log(t('batchReady', { id, branch, base: plan.base, n: record.issues.length }))
+  console.log(t('batchReady', { id, branch, base: plan.base, n: record.issues.length, scope: t(`fixerScope_${scope}`) }))
 }
 
 function batchChecks() {
