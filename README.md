@@ -16,8 +16,8 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
 
 | Plugin | Version | Description |
 | --- | --- | --- |
-| [scanner](scanner-plugin/) | 0.5.1 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
-| [tracker](tracker-plugin/) | 0.2.0 | The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans, triage them against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch. |
+| [scanner](scanner-plugin/) | 0.5.2 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
+| [tracker](tracker-plugin/) | 0.2.1 | The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans, triage them against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch. |
 
 ## Layout
 
