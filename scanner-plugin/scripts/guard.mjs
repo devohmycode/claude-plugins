@@ -49,10 +49,26 @@ function blockAfter(reason) {
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'NotebookRead'])
 const WRITE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 
+// The end of a git subcommand: whitespace, a shell operator or the end of the command.
+// Not `\b`, which also ends `merge` in `merge-base`. Same rules as the tracker's guard.
+const END = String.raw`(?=[\s;&|)]|$)`
+const gitRule = (rest) => new RegExp(String.raw`\bgit\s+` + rest)
+
 // During a scan nothing may change the working tree. Best effort: Bash is a full
 // language, so this list stops mistakes, not malice.
 const MUTATING_DURING_SCAN = [
-  /\bgit\s+(commit|push|add|rm|mv|reset|checkout|switch|restore|rebase|merge|cherry-pick|revert|stash|clean|tag|branch\s+-[dDmM])\b/,
+  gitRule(
+    String.raw`(commit|push|add|rm|mv|reset|checkout|switch|restore|rebase|merge|cherry-pick|revert|clean)${END}`
+  ),
+  /\bgit\s+branch\s+-[dDmM]\b/,
+  // `stash` alone pushes; `stash list` and `stash show` only read.
+  gitRule(String.raw`stash${END}(?!\s+(list|show)${END})`),
+  // `tag` alone, `tag -l|--list`, or only filters (`--contains X`, `--points-at X`…) list;
+  // a name argument or `-a`, `-d`, `-f`, `-m`, `-s` writes.
+  gitRule(
+    String.raw`tag${END}(?![^;&|)\n]*\s(-l|--list)${END})` +
+      String.raw`(?!(\s+(--(contains|no-contains|points-at|merged|no-merged)(=\S+|\s+[^-\s;&|)][^\s;&|)]*)?|--(sort|format|color|column)(=\S+)?|--no-column|-n\d*|-i|--ignore-case))*\s*([;&|)]|$))`
+  ),
   /\b(pnpm|npm|yarn|bun)\s+(format|install|i|add|remove|rm|up|update|dedupe|prune)\b/,
   /\bprettier\b[^|;&]*--write\b/,
   /\b(rm|mv|cp|rmdir|unlink|truncate|chmod|chown)\s/,
