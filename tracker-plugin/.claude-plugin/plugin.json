@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans (close what was resolved, reopen what came back), triage open issues against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch.",
   "author": {
     "name": "DevOhMyCode",

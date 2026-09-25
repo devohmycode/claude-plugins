@@ -23,6 +23,7 @@ const check = process.argv.includes('--check')
 const SHARED = [
   { source: 'shared/i18n/i18n.mjs', target: 'scripts/i18n.mjs' },
   { source: 'shared/findings/findings.mjs', target: 'scripts/findings.mjs' },
+  { source: 'shared/git/repo.mjs', target: 'scripts/repo.mjs' },
 ]
 
 const header = (source) =>

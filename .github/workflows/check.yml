@@ -18,5 +18,5 @@ jobs:
         run: node scanner-plugin/scripts/generate.mjs --check
       - name: Tracker agent variants and /config rows
         run: node tracker-plugin/scripts/generate.mjs --check
-      - name: Tracker tests
-        run: node --test tests/tracker/*.test.mjs
+      - name: Tests (shared modules, tracker)
+        run: node --test tests/*/*.test.mjs
