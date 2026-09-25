@@ -1,6 +1,6 @@
 ---
 description: Run a local scan with a profile (parallel investigation, adversarial triage, then a report, fixes on a new branch, or both with your confirmation in between)
-argument-hint: <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review] [--model <model>] [--effort <effort>]
+argument-hint: <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review] [--model <model>] [--effort <effort>] [--via claude,codex,…]
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
@@ -37,18 +37,30 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
   under the name the script printed for its role (`scanner:investigator-high` carries the
   effort `high`), with the Agent tool's `model` parameter set to `MODEL=` — **omit the
   parameter when `MODEL=inherit`**. Never pick another model or effort yourself.
+- `BATCHES=` lists the batches for the plugin's investigator agents, `EXTERNAL=` the batches
+  given to external agents (`B2:codex,B4:cursor`), chosen by `--via`, else `investigators` in
+  `.scanner/config.json`, else none. When `EXTERNAL=` is not empty, relay to the user the
+  warning `prepare` printed about external investigators before going on.
 
 ## 2. Investigate — in parallel
 
-In **a single message**, launch one agent per batch listed — type `INVESTIGATOR=`
-(`scanner:investigator` or one of its effort variants), model `MODEL=` — with this prompt:
+In **a single message**:
 
-```
-DIR=<run directory>
-BATCH=<B1, B2…>
-```
+- launch one agent per batch of `BATCHES=` — type `INVESTIGATOR=` (`scanner:investigator` or
+  one of its effort variants), model `MODEL=` — with this prompt:
 
-Wait for all of them. A failed agent does not fail the scan: note it for the summary.
+  ```
+  DIR=<run directory>
+  BATCH=<B1, B2…>
+  ```
+
+- if `EXTERNAL=` is not empty, also run `SCANNER investigate-external <RUN>` with the Bash
+  tool's `run_in_background: true` (external agents can outlast a foreground command). It
+  calls each agent through its bridge, read-only, and writes the batch's findings itself;
+  it ends with `EXTERNAL_DONE=B2:ok,B4:failed`.
+
+Wait for all of them. A failed agent or external batch does not fail the scan: note it for
+the summary.
 
 ## 3. Consolidate
 

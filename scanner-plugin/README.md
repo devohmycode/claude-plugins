@@ -157,6 +157,40 @@ effort (`agents/investigator-high.md`…), which the scan launches instead of th
 These variants and the `/config` rows are **generated**: edit `agents/<agent>.md` or add a
 profile, then run `node scanner-plugin/scripts/generate.mjs` (CI runs it with `--check`).
 
+## External investigators (agent bridges)
+
+A scan can hand some investigation batches to other coding agents — Codex, Grok Build,
+Cursor, Devin, GitHub Copilot, Antigravity, Warp Oz — through the plugins of the
+[agent-bridges](https://github.com/devohmycode/agent-bridges-cc) marketplace. Several models
+looking at the same code miss different things; triage stays with the plugin's own agents,
+so every external finding is cross-examined by Claude before it is kept.
+
+```text
+/plugin marketplace add devohmycode/agent-bridges-cc
+/plugin install codex@agent-bridges        # or cursor-bridge, devin-bridge…
+/scanner:scan security --via claude,codex
+```
+
+- `--via` lists the investigators; batches are dealt out in turn (`claude,codex` with four
+  batches: B1 and B3 to Claude, B2 and B4 to Codex). Without `--via`: `investigators` in
+  `types.<type>` or at the top of `.scanner/config.json`, else `claude` alone.
+- `prepare` checks that each bridge is installed and prints `BATCHES=` (Claude's) and
+  `EXTERNAL=` (`B2:codex,…`). `investigate-external <run>` then runs those batches side by
+  side: it writes the prompt (`prompts/external-investigator.md`, the investigator's contract)
+  to `prompt-B2.md`, calls the bridge **read-only**, extracts the JSON array from the answer
+  and writes `findings-B2.json` itself. `external-B2.json` and `external-B2.txt` keep what
+  happened and the raw answer.
+- A batch fails without failing the scan when the agent times out
+  (`externalTimeoutMinutes`, 30), answers without a JSON array, or modifies the working tree.
+- `external.<engine>.model` / `.effort` in the config are passed to that bridge as they are:
+  they are the agent's own names (`gpt-5.5`, `high`…), not the scanner's.
+- Each kept finding carries `engine` (`codex`…) when an external agent found it.
+
+**What does not apply to them.** External agents run outside Claude Code: the guard never sees
+what they read, so the profile's exclusions are only an instruction in their prompt, and the
+code they read is sent to their provider. `consolidate` drops any finding on an excluded
+file, but cannot unsend it: keep secrets out of scanned trees, or do not use `--via` there.
+
 ## The guard (hooks)
 
 `hooks/hooks.json` wires `scripts/guard.mjs` to `PreToolUse` and `PostToolUse`. Outside a
@@ -246,8 +280,10 @@ See `examples/config.json`. Keys:
   even if the profile excludes them. The `reports` directory is always readable then, so the
   reporter can follow the existing reports' layout; add e.g. `"read": ["docs/**"]` for a
   style guide, `"write": ["docs/index.html"]` to let it register the report;
+- `investigators` (`["claude"]`), `external.<engine>.model` / `.effort`,
+  `externalTimeoutMinutes` (30): see [External investigators](#external-investigators-agent-bridges);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
-- `types.<type>`: `enabled`, `model`, `effort`, `requireReachability` (default: `security` only),
+- `types.<type>`: `enabled`, `model`, `effort`, `investigators`, `requireReachability` (default: `security` only),
   `exclusions.add` / `exclusions.remove`;
 - `check`: `constants` (names that must still exist in code), `libraries.present` /
   `libraries.absent` (checked in `package.json`), `counts` (`label`, `glob`, `expected`),
