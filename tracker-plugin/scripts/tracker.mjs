@@ -19,6 +19,10 @@
 //   status                                      open issues by priority, runs, guard
 //   check                                       config, gh, sources
 //   language [<code>] · model [<role>|all] [--model …] [--effort …] · guard status|off
+//   repo plan | repo init [--commit] | repo github [--public]
+//
+// Every command that calls the GitHub CLI needs a repository with a remote; triage and
+// batch also need a commit. Without them: REPO=none|empty|no-remote|no-git, exit 3.
 
 import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -31,6 +35,7 @@ import {
   validateFindings,
 } from './findings.mjs'
 import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
+import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState } from './repo.mjs'
 import {
   AGENT_SETTINGS,
   CONFIG_FILE,
@@ -1020,6 +1025,8 @@ function batchFinish() {
   if (!record) fail(t('batchNotStarted', { id, run }))
   const state = readState(root)
   if (state?.mode === 'batch' && state.run === run && state.batch === id) fail(t('guardStillArmed'))
+  // Pushing needs a remote: checked once the guard is known to be lifted.
+  if (flag('push') || flag('pr')) requireRepo({ remote: true })
   const outcomes = outcomesOf(dir, record)
   const commits = commitsOf(record)
   const fixed = outcomes.filter((o) => o.status === 'fixed')
@@ -1189,6 +1196,78 @@ function cmdModel() {
   console.log(t('modelSet', { target: target ?? 'all', file: CONFIG_FILE }))
 }
 
+// ─── The repository ─────────────────────────────────────────────────────────
+
+/**
+ * What each command needs of the project's repository: a remote wherever the GitHub CLI
+ * is called, and a commit for triage (history) and batches (branches, worktrees).
+ */
+const NEEDS_REPO = {
+  open: () => ({ remote: true }),
+  sync: () => ({ remote: true }),
+  select: () => ({ remote: true }),
+  status: () => ({ remote: true }),
+  triage: (sub) => ({ commit: true, remote: sub === 'prepare' || sub === 'apply' }),
+  // `batch finish --push|--pr` checks its remote itself, after the guard.
+  batch: (sub) => ({ commit: true, remote: sub === 'plan' }),
+}
+
+const REPO_MESSAGES = { 'no-git': 'repoNoGit', none: 'repoNone', empty: 'repoEmpty', 'no-remote': 'repoNoRemote' }
+
+/** Stops with `REPO=<what is missing>` and exit code 3 when the project is not usable. */
+function requireRepo(needs) {
+  const missing = missingFor(repoState(root), needs)
+  if (!missing) return
+  console.log(`REPO=${missing}`)
+  console.error(t(REPO_MESSAGES[missing], { dir: toPosix(root) }))
+  process.exit(REPO_EXIT)
+}
+
+function cmdRepo() {
+  const [action] = positional()
+  const dir = toPosix(root)
+  const current = repoState(root)
+  if (current.state === 'no-git') fail(t('repoNoGit', { dir }))
+  if (action === 'plan') {
+    console.log(`REPO_STATE=${current.state}`)
+    console.log(`REMOTE=${current.remote ? 'yes' : 'no'}`)
+    if (current.state === 'ready') return console.log(t('repoAlready', { dir }))
+    const { files, flagged } = plannedFiles(root)
+    console.log(`FILES=${files.length}`)
+    console.log(t('repoPlanFiles', { n: files.length }))
+    if (flagged.length) {
+      console.log(t('repoPlanFlagged'))
+      for (const f of flagged) console.log(`  ${f.path}${f.files > 1 ? ` ×${f.files}` : ''}`)
+    } else console.log(t('repoPlanClean'))
+    console.log(`FLAGGED=${flagged.map((f) => f.path).join(',')}`)
+    return
+  }
+  if (action === 'init') {
+    try {
+      const { committed } = initRepo(root, { commit: flag('commit'), message: t('repoInitialCommit') })
+      if (current.state === 'none') console.log(t('repoCreated', { dir }))
+      if (flag('commit')) console.log(committed ? t('repoCommitted', { n: committed }) : t('repoNothingToCommit'))
+    } catch (e) {
+      fail(t('repoFailed', { error: String(e.stderr || e.message).trim() }))
+    }
+    console.log(`REPO_STATE=${repoState(root).state}`)
+    return
+  }
+  if (action === 'github') {
+    // Publishes the code: the command runs it only on the user's explicit answer.
+    if (current.remote) fail(t('repoHasRemote', { dir }))
+    if (current.state !== 'ready') fail(t('repoEmpty', { dir }), REPO_EXIT)
+    try {
+      const url = publishRepo(root, { visibility: flag('public') ? 'public' : 'private' })
+      console.log(t('repoPublished', { url }))
+    } catch (e) {
+      fail(t('repoPublishFailed', { error: String(e.stderr || e.message).trim() }))
+    }
+    return
+  }
+  fail(t('usage', { syntax: 'repo plan | repo init [--commit] | repo github [--public]' }), 2)
+}
+
 const commands = {
   sources: cmdSources,
   open: cmdOpen,
@@ -1201,10 +1280,12 @@ const commands = {
   language: cmdLanguage,
   model: cmdModel,
   guard: cmdGuard,
+  repo: cmdRepo,
 }
 
 try {
   if (!commands[command]) fail(t('unknownCommand', { list: Object.keys(commands).join(', ') }), 2)
+  if (NEEDS_REPO[command]) requireRepo(NEEDS_REPO[command](args[0]))
   commands[command]()
 } catch (e) {
   fail(`tracker: ${e.message}`)

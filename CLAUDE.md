@@ -33,13 +33,27 @@ The mechanism is shared; do not reinvent it in a plugin.
 ### Adding a plugin
 
 1. Create `<name>-plugin/` and list it in `.claude-plugin/marketplace.json`.
-2. `node scripts/sync-shared.mjs` — copies the shared modules (the i18n engine and the findings
-   contract `shared/findings/findings.mjs`), creates empty `locales/*.json` and
-   declares `userConfig.language` in the manifest.
+2. `node scripts/sync-shared.mjs` — copies the shared modules (the i18n engine, the findings
+   contract `shared/findings/findings.mjs` and the repository checks `shared/git/repo.mjs`),
+   creates empty `locales/*.json` and declares `userConfig.language` in the manifest.
 3. Fill `locales/en.json`, then its three translations (correct accents and typography:
    `« … »` in French, `«…»` in Spanish, `„…“` in German).
 4. `node scripts/sync-shared.mjs --check` must pass (CI runs it on every push and pull
    request).
+
+## Git repository (every command that needs one)
+
+A command that reads the history, the tracked files, commits, opens worktrees or calls the
+GitHub CLI must not fail on a folder that is not a repository yet. The mechanism is shared:
+
+- **Script**: before running such a command, check `missingFor(repoState(root), needs)` from
+  `scripts/repo.mjs` (`needs`: `commit`, `remote`); when something is missing, print
+  `REPO=none|empty|no-remote|no-git`, a message from the catalog, and exit `REPO_EXIT` (3).
+  Offer `repo plan` and `repo init [--commit]` (and `repo github` when the plugin works on
+  GitHub), as `scanner.mjs` and `tracker.mjs` do.
+- **Command**: end the command file with a "Not a git repository yet" section: on `REPO=`,
+  show `repo plan`, **ask** with `AskUserQuestion`, create only on that answer, then run the
+  failed command again. Creating a GitHub repository publishes the code: its own question.
 
 ## Releasing
 

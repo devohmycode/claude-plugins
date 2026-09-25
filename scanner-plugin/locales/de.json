@@ -87,5 +87,17 @@
   "agentsChoices": "Modelle: {models}. Aufwand: {efforts}. inherit: die der Sitzung.",
   "agentSettingSet": "Für {target}, {setting}: {value}, in {file} geschrieben.",
   "setting_model": "Modell",
-  "setting_effort": "Aufwand"
+  "setting_effort": "Aufwand",
+  "repoNoGit": "git ist nicht installiert oder nicht im PATH: Dieser Befehl braucht es.",
+  "repoNone": "{dir} ist kein Git-Repository, und dieser Befehl braucht eines. `repo plan` zeigt, was ein erster Commit enthielte; `repo init --commit` legt das Repository an.",
+  "repoEmpty": "{dir} ist ein Git-Repository ohne Commit, und dieser Befehl braucht einen. `repo init --commit` committet die aktuellen Dateien.",
+  "repoAlready": "{dir} ist bereits ein Git-Repository mit Commits.",
+  "repoPlanFiles": "Ein erster Commit enthielte {n} Datei(en) — die .gitignore gilt.",
+  "repoPlanFlagged": "Vor dem Commit prüfen (Geheimnisse, Schlüssel, Abhängigkeiten, Build-Ausgaben, große Dateien):",
+  "repoPlanClean": "Nichts sieht nach einem Geheimnis, Schlüssel, einer Abhängigkeit oder Build-Ausgabe aus.",
+  "repoCreated": "Git-Repository in {dir} angelegt.",
+  "repoCommitted": "Erster Commit: {n} Datei(en).",
+  "repoNothingToCommit": "Nichts zu committen: Der Ordner ist leer oder alles wird ignoriert.",
+  "repoFailed": "git ist fehlgeschlagen: {error}",
+  "repoInitialCommit": "Erster Commit"
 }

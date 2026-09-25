@@ -57,6 +57,14 @@ In the scanned repository, add to `.gitignore`:
 `.scanner/config.json`, `.scanner/profiles/` and `.scanner/history/` are meant to be
 committed.
 
+**A folder that is not a git repository yet.** A scan works on the repository: its tracked
+files, its commit, its fix branches. On a plain folder (or a repository without a commit),
+`/scanner:scan`, `scan-all`, `remediate` and `check` say so instead of failing, show what a
+first commit would hold — flagging `.env`, keys, `node_modules/`, build output and large
+files — and **ask** whether to create the repository and commit, create it only, or cancel.
+Nothing is created without that answer. From the script: `scanner.mjs repo plan`,
+`scanner.mjs repo init [--commit]`.
+
 ## Commands
 
 | Command                                                      | Role                                                                                      |

@@ -87,5 +87,17 @@
   "agentsChoices": "Modèles : {models}. Efforts : {efforts}. inherit : ceux de la session.",
   "agentSettingSet": "Pour {target}, {setting} : {value}, écrit dans {file}.",
   "setting_model": "modèle",
-  "setting_effort": "effort"
+  "setting_effort": "effort",
+  "repoNoGit": "git n'est pas installé, ou pas dans le PATH : cette commande en a besoin.",
+  "repoNone": "{dir} n'est pas un dépôt git, et cette commande en a besoin. `repo plan` montre ce que contiendrait un premier commit ; `repo init --commit` crée le dépôt.",
+  "repoEmpty": "{dir} est un dépôt git sans aucun commit, et cette commande en a besoin. `repo init --commit` commite les fichiers actuels.",
+  "repoAlready": "{dir} est déjà un dépôt git avec des commits.",
+  "repoPlanFiles": "Un premier commit contiendrait {n} fichier(s) — le .gitignore s'applique.",
+  "repoPlanFlagged": "À vérifier avant de commiter (secrets, clés, dépendances, fichiers de build, gros fichiers) :",
+  "repoPlanClean": "Rien ne ressemble à un secret, une clé, une dépendance ou un fichier de build.",
+  "repoCreated": "Dépôt git créé dans {dir}.",
+  "repoCommitted": "Premier commit : {n} fichier(s).",
+  "repoNothingToCommit": "Rien à commiter : le dossier est vide, ou tout est ignoré.",
+  "repoFailed": "git a échoué : {error}",
+  "repoInitialCommit": "Commit initial"
 }

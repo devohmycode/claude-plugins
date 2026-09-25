@@ -29,7 +29,8 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
   scripts/i18n.mjs                generated copy of shared/i18n/i18n.mjs
 shared/i18n/i18n.mjs              language engine shared by every plugin
 shared/findings/findings.mjs      findings contract: what the scanner writes and the tracker reads
-tests/                            node --test suites (node --test tests/tracker/*.test.mjs)
+shared/git/repo.mjs               repository checks: a folder that is not a git repository yet
+tests/                            node --test suites (node --test tests/*/*.test.mjs)
 scripts/sync-shared.mjs           copies shared modules into the plugins, checks catalogs
 ```
 

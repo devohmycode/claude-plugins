@@ -51,6 +51,16 @@ In the repository, add to `.gitignore`:
 
 `.tracker/config.json` is meant to be committed.
 
+**A folder that is not a git repository yet, or one without GitHub.** The tracker works on the
+project's GitHub issues and its history. On a plain folder (or a repository without a
+commit), the commands say so instead of failing, show what a first commit would hold —
+flagging `.env`, keys, `node_modules/`, build output and large files — and **ask** whether to
+create the repository and commit, create it only, or cancel. A repository without a remote
+gets a second question: create a **private** GitHub repository and push the code to it
+(`gh repo create`), add a remote yourself, or cancel — publishing is never done without that
+answer. From the script: `tracker.mjs repo plan`, `repo init [--commit]`,
+`repo github [--public]`.
+
 ## Findings files
 
 The tracker reads one format, the **findings contract** shared by the plugins of this

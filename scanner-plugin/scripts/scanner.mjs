@@ -16,6 +16,10 @@
 //   language [<code>]                       show the language, or set it in .scanner/config.json
 //   model [<type>|all] [--model …] [--effort …]  show the agents' model and effort, or set them
 //   guard status | off | remediate <run> <id>
+//   repo plan | repo init [--commit]        when the project is not a git repository yet
+//
+// prepare, fix, fix-status and check need a repository with a commit: without one they
+// print REPO=none|empty|no-git and exit 3.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -46,6 +50,7 @@ import {
   writeJson,
 } from './lib.mjs'
 import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
+import { REPO_EXIT, initRepo, missingFor, plannedFiles, repoState } from './repo.mjs'
 
 const root = projectRoot()
 const [command, ...args] = process.argv.slice(2)
@@ -988,6 +993,63 @@ function cmdModel() {
     )
 }
 
+// ─── The repository ─────────────────────────────────────────────────────────
+
+/** What each command needs of the project's repository: history, tracked files. */
+const NEEDS_REPO = {
+  prepare: { commit: true },
+  fix: { commit: true },
+  'fix-status': { commit: true },
+  check: { commit: true },
+}
+
+const REPO_MESSAGES = { 'no-git': 'repoNoGit', none: 'repoNone', empty: 'repoEmpty' }
+
+/** Stops with `REPO=<what is missing>` and exit code 3 when the project is not usable. */
+function requireRepo(needs) {
+  const missing = missingFor(repoState(root), needs)
+  if (!missing) return
+  console.log(`REPO=${missing}`)
+  console.error(t(REPO_MESSAGES[missing], { dir: root.split(path.sep).join('/') }))
+  process.exit(REPO_EXIT)
+}
+
+//   repo plan            what a first commit would hold, without touching anything
+//   repo init [--commit] git init, then optionally a first commit
+function cmdRepo() {
+  const [action] = positional([])
+  const dir = root.split(path.sep).join('/')
+  const current = repoState(root)
+  if (action === 'plan') {
+    console.log(`REPO_STATE=${current.state}`)
+    if (current.state === 'no-git') fail(t('repoNoGit', { dir }))
+    if (current.state === 'ready') return console.log(t('repoAlready', { dir }))
+    const { files, flagged } = plannedFiles(root)
+    console.log(`FILES=${files.length}`)
+    console.log(t('repoPlanFiles', { n: files.length }))
+    if (flagged.length) {
+      console.log(t('repoPlanFlagged'))
+      for (const f of flagged) console.log(`  ${f.path}${f.files > 1 ? ` ×${f.files}` : ''}`)
+    } else console.log(t('repoPlanClean'))
+    console.log(`FLAGGED=${flagged.map((f) => f.path).join(',')}`)
+    return
+  }
+  if (action === 'init') {
+    if (current.state === 'no-git') fail(t('repoNoGit', { dir }))
+    try {
+      const created = current.state === 'none'
+      const { committed } = initRepo(root, { commit: option('commit') === true, message: t('repoInitialCommit') })
+      if (created) console.log(t('repoCreated', { dir }))
+      if (option('commit') === true) console.log(committed ? t('repoCommitted', { n: committed }) : t('repoNothingToCommit'))
+    } catch (e) {
+      fail(t('repoFailed', { error: String(e.stderr || e.message).trim() }))
+    }
+    console.log(`REPO_STATE=${repoState(root).state}`)
+    return
+  }
+  fail(t('usage', { syntax: 'repo plan | repo init [--commit]' }))
+}
+
 const commands = {
   types: cmdTypes,
   profile: cmdProfile,
@@ -1001,10 +1063,12 @@ const commands = {
   language: cmdLanguage,
   model: cmdModel,
   guard: cmdGuard,
+  repo: cmdRepo,
 }
 
 try {
   if (!commands[command]) fail(t('unknownCommand', { list: Object.keys(commands).join(', ') }))
+  if (NEEDS_REPO[command]) requireRepo(NEEDS_REPO[command])
   commands[command]()
 } catch (e) {
   fail(`scanner: ${e.message}`)

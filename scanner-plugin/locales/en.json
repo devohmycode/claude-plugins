@@ -87,5 +87,17 @@
   "agentsChoices": "Models: {models}. Efforts: {efforts}. inherit: the session's own.",
   "agentSettingSet": "For {target}, {setting}: {value}, written to {file}.",
   "setting_model": "model",
-  "setting_effort": "effort"
+  "setting_effort": "effort",
+  "repoNoGit": "git is not installed, or not on the PATH: this command needs it.",
+  "repoNone": "{dir} is not a git repository, and this command needs one. `repo plan` shows what a first commit would hold; `repo init --commit` creates the repository.",
+  "repoEmpty": "{dir} is a git repository without any commit, and this command needs one. `repo init --commit` commits the current files.",
+  "repoAlready": "{dir} is already a git repository with commits.",
+  "repoPlanFiles": "A first commit would hold {n} file(s) — the .gitignore applies.",
+  "repoPlanFlagged": "Worth a look before committing (secrets, keys, dependencies, build output, large files):",
+  "repoPlanClean": "Nothing looks like a secret, a key, a dependency or a build output.",
+  "repoCreated": "Git repository created in {dir}.",
+  "repoCommitted": "First commit: {n} file(s).",
+  "repoNothingToCommit": "Nothing to commit: the folder is empty, or everything is ignored.",
+  "repoFailed": "git failed: {error}",
+  "repoInitialCommit": "Initial commit"
 }
