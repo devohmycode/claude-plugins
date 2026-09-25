@@ -5,7 +5,9 @@
 //   types                                   list available scan types
 //   profile <type>                          print the effective profile (JSON)
 //   prepare <type> [--scope full|diff|<path>] [--deep] [--mode report|fix|review]
-//           [--model <model>] [--effort <effort>]
+//           [--model <model>] [--effort <effort>] [--via claude,codex,…]
+//   investigate-external <run>              run the batches assigned to external agents
+//                                           through their bridges → findings-B*.json
 //   consolidate <run>                       findings-B*.json → findings.json + triage batches
 //   finalize <run>                          verdicts-T*.json → final.json + history
 //   select <run> [<selection>]              list the retained findings, resolve a selection
@@ -28,6 +30,7 @@ import {
   AGENT_SETTINGS,
   CONFIG_FILE,
   MODES,
+  PLUGIN_ROOT,
   REPORT_FORMATS,
   SEVERITIES,
   STATE_DIR,
@@ -50,6 +53,14 @@ import {
   writeJson,
 } from './lib.mjs'
 import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
+import {
+  CLAUDE,
+  extractFindings,
+  knownEngines,
+  parseEngines,
+  resolveBridge,
+  runBridge,
+} from './bridges.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, repoState } from './repo.mjs'
 
 const root = projectRoot()
@@ -165,6 +176,38 @@ const expiry = (config) =>
   new Date(Date.now() + (config.guard.ttlHours ?? 6) * 3600_000).toISOString()
 const toPosix = (p) => p.split(path.sep).join('/')
 
+// ─── Investigators ──────────────────────────────────────────────────────────
+
+/**
+ * Who investigates the batches: `claude` (the plugin's agents) and/or external agents
+ * reached through the agent-bridges plugins. First match wins: `--via`,
+ * `types.<type>.investigators`, `investigators`, then claude alone. Batches are dealt
+ * out in turn. Fails on an unknown engine or a bridge that is not installed.
+ */
+function investigatorsOf(config, type) {
+  const asked = option('via')
+  const engines = parseEngines(
+    typeof asked === 'string'
+      ? asked
+      : (config.types?.[type]?.investigators ?? config.investigators ?? [CLAUDE])
+  )
+  if (!engines.length) return [CLAUDE]
+  for (const engine of engines) {
+    if (!knownEngines().includes(engine))
+      fail(t('badInvestigator', { value: engine, list: knownEngines().join(', ') }))
+    if (engine === CLAUDE) continue
+    const bridge = resolveBridge(engine, { root })
+    if (!bridge.found)
+      fail(
+        t(bridge.code === 'script-missing' ? 'bridgeScriptMissing' : 'bridgeMissing', {
+          engine,
+          plugin: bridge.plugin,
+        })
+      )
+  }
+  return engines
+}
+
 // ─── Scope and batching ─────────────────────────────────────────────────────
 
 function filesInScope(config, scope) {
@@ -261,12 +304,15 @@ function cmdPrepare() {
   const mode = modeFor(config, typeof asked === 'string' ? asked : null)
   if (!mode.known) fail(t('badMode', { value: mode.value, list: MODES.join(', ') }))
   const agents = agentsOf(config, type)
+  const engines = investigatorsOf(config, type)
 
   const all = filesInScope(config, scope)
   const files = all.filter((f) => !matchGlob(f, profile.exclusions))
   if (!files.length) fail(t('noFileInScope', { scope }))
 
   const batches = splitIntoBatches(files, (config.batches ?? 4) * (deep ? 2 : 1))
+  batches.forEach((b, i) => (b.engine = engines[i % engines.length]))
+  const external = engines.filter((e) => e !== CLAUDE)
   const run = `${type}-${timestamp()}`
   const dir = path.join(root, STATE_DIR, 'runs', run)
   const meta = {
@@ -282,12 +328,17 @@ function cmdPrepare() {
     started: new Date().toISOString(),
     files: files.length,
     excluded: all.length - files.length,
-    batches: batches.map(({ id, groups, files: f, bytes }) => ({
+    batches: batches.map(({ id, groups, files: f, bytes, engine }) => ({
       id,
       groups,
       files: f.length,
       bytes,
+      engine,
     })),
+    // Model and effort per external engine (their own names, passed to the bridge as is).
+    external: Object.fromEntries(
+      external.map((e) => [e, { model: config.external?.[e]?.model ?? null, effort: config.external?.[e]?.effort ?? null }])
+    ),
   }
   writeJson(path.join(dir, 'profile.json'), profile)
   for (const b of batches) writeJson(path.join(dir, `batch-${b.id}.json`), b.files)
@@ -313,6 +364,16 @@ function cmdPrepare() {
     })
   )
   printAgents(agents, ['investigator', 'triager', 'reporter'])
+  // BATCHES: the ones for the plugin's investigator agents; EXTERNAL: the others, run
+  // by `investigate-external`.
+  console.log(`BATCHES=${batches.filter((b) => b.engine === CLAUDE).map((b) => b.id).join(',')}`)
+  console.log(
+    `EXTERNAL=${batches
+      .filter((b) => b.engine !== CLAUDE)
+      .map((b) => `${b.id}:${b.engine}`)
+      .join(',')}`
+  )
+  if (external.length) console.log(t('externalAnnounce', { list: external.join(', ') }))
   console.log(
     t('profileLine', {
       type,
@@ -332,12 +393,101 @@ function cmdPrepare() {
         files: b.files,
         kb: Math.round(b.bytes / 1024),
         groups: b.groups.join(', '),
-      })
+      }) + (external.length ? t('batchVia', { engine: b.engine }) : '')
     )
   console.log(t('guardArmed'))
 }
 
-function validateFinding(f, source) {
+const EXTERNAL_PROMPT = path.join(PLUGIN_ROOT, 'prompts', 'external-investigator.md')
+
+/** The profile fields an investigator reads, as Markdown sections. */
+function profileText(profile) {
+  const parts = [['Context', profile.context], ['Project context', profile.project_context]]
+  for (const key of ['description', 'threat_model_guidance', 'investigation_guidance', 'triage_guidance'])
+    parts.push([key.replace(/_guidance$/, '').replace(/_/g, ' '), profile[key]])
+  return parts
+    .filter(([, text]) => text && String(text).trim())
+    .map(([title, text]) => `## ${title[0].toUpperCase()}${title.slice(1)}\n\n${String(text).trim()}`)
+    .join('\n\n')
+}
+
+function externalPrompt(profile, files) {
+  const template = readFileSync(EXTERNAL_PROMPT, 'utf8').replace(/^<!--[\s\S]*?-->\s*/, '')
+  const values = {
+    PROFILE: profileText(profile),
+    FILES: files.map((f) => `- ${f}`).join('\n'),
+    EXCLUSIONS: profile.exclusions?.length ? profile.exclusions.map((g) => `- \`${g}\``).join('\n') : '- (none)',
+    LANGUAGE: profile.language ?? 'English',
+  }
+  return template.replace(/\{\{([A-Z]+)\}\}/g, (m, key) => values[key] ?? m)
+}
+
+/**
+ * Runs, side by side, every batch the run assigned to an external engine: builds its
+ * prompt, calls the bridge read-only, extracts the JSON array and writes
+ * `findings-<B>.json` (and `external-<B>.json`, what happened). A failed batch does not
+ * fail the scan: it has no findings file, as with a failed investigator agent.
+ */
+async function cmdInvestigateExternal() {
+  const dir = runDir(args[0])
+  const meta = readJson(path.join(dir, 'meta.json'))
+  const profile = readJson(path.join(dir, 'profile.json'))
+  const config = readConfig(root)
+  const timeoutMinutes = Number(config.externalTimeoutMinutes ?? 30)
+  const batches = meta.batches.filter((b) => b.engine && b.engine !== CLAUDE)
+  if (!batches.length) {
+    console.log(t('noExternalBatch'))
+    console.log('EXTERNAL_DONE=')
+    return
+  }
+
+  const results = await Promise.all(
+    batches.map(async (b) => {
+      const bridge = resolveBridge(b.engine, { root })
+      if (!bridge.found) return { b, ok: false, code: bridge.code, ms: 0, detail: '' }
+      const promptFile = path.join(dir, `prompt-${b.id}.md`)
+      writeFileSync(promptFile, externalPrompt(profile, readJson(path.join(dir, `batch-${b.id}.json`))), 'utf8')
+      const settings = meta.external?.[b.engine] ?? {}
+      const run = await runBridge(bridge, {
+        root,
+        promptFile,
+        model: settings.model,
+        effort: settings.effort,
+        timeoutMs: timeoutMinutes * 60_000,
+      })
+      writeFileSync(path.join(dir, `external-${b.id}.txt`), run.rawOutput ?? '', 'utf8')
+      if (!run.ok) return { b, ...run }
+      const findings = extractFindings(run.rawOutput)
+      if (!findings) return { b, ...run, ok: false, code: 'no-findings-json' }
+      writeJson(path.join(dir, `findings-${b.id}.json`), findings)
+      return { b, ...run, findings: findings.length }
+    })
+  )
+
+  for (const r of results) {
+    writeJson(path.join(dir, `external-${r.b.id}.json`), {
+      engine: r.b.engine,
+      ok: r.ok,
+      code: r.code ?? null,
+      findings: r.findings ?? null,
+      ms: r.ms,
+      detail: r.detail || null,
+    })
+    const seconds = Math.round(r.ms / 1000)
+    if (r.ok) console.log(t('externalBatchOk', { id: r.b.id, engine: r.b.engine, findings: r.findings, seconds }))
+    else
+      console.log(
+        t('externalBatchFailed', {
+          id: r.b.id,
+          engine: r.b.engine,
+          reason: t(`externalReason_${r.code}`, { minutes: timeoutMinutes, plugin: r.b.engine }),
+        })
+      )
+  }
+  console.log(`EXTERNAL_DONE=${results.map((r) => `${r.b.id}:${r.ok ? 'ok' : 'failed'}`).join(',')}`)
+}
+
+function validateFinding(f, source, exclusions = []) {
   const errors = []
   for (const field of ['title', 'file', 'rule', 'description'])
     if (typeof f[field] !== 'string' || !f[field].trim()) errors.push(t('missingField', { field }))
@@ -346,6 +496,8 @@ function validateFinding(f, source) {
   if (f.line != null && !Number.isInteger(f.line)) errors.push(t('lineNotInteger'))
   if (f.file && !existsSync(path.join(root, f.file)))
     errors.push(t('fileMissing', { file: f.file }))
+  // External agents are not held back by the guard: drop what the profile excludes.
+  else if (f.file && matchGlob(f.file, exclusions)) errors.push(t('excludedByProfile', { file: f.file }))
   return errors.length ? `${source} "${f.title ?? '?'}": ${errors.join(', ')}` : null
 }
 
@@ -360,6 +512,8 @@ function fingerprint(type, f) {
 function cmdConsolidate() {
   const dir = runDir(args[0])
   const meta = readJson(path.join(dir, 'meta.json'))
+  const exclusions = readJson(path.join(dir, 'profile.json')).exclusions ?? []
+  const engineOf = Object.fromEntries(meta.batches.map((b) => [b.id, b.engine ?? CLAUDE]))
   const present = readdirSync(dir).filter((f) => /^findings-B\d+\.json$/.test(f))
   const missing = meta.batches
     .map((b) => `findings-${b.id}.json`)
@@ -376,14 +530,22 @@ function cmdConsolidate() {
       continue
     }
     for (const f of Array.isArray(list) ? list : (list.findings ?? [])) {
-      const error = validateFinding(f, file)
+      const error = validateFinding(f, file, exclusions)
       if (error) {
         rejected.push(error)
         continue
       }
       const fp = fingerprint(meta.type, f)
+      const batch = file.slice(9, -5)
+      const engine = engineOf[batch]
       if (!byFingerprint.has(fp))
-        byFingerprint.set(fp, { ...f, fingerprint: fp, batch: file.slice(9, -5) })
+        byFingerprint.set(fp, {
+          ...f,
+          fingerprint: fp,
+          batch,
+          // Which agent found it, when it was not the plugin's own.
+          ...(engine && engine !== CLAUDE ? { engine } : {}),
+        })
     }
   }
   const findings = [...byFingerprint.values()]
@@ -1054,6 +1216,7 @@ const commands = {
   types: cmdTypes,
   profile: cmdProfile,
   prepare: cmdPrepare,
+  'investigate-external': cmdInvestigateExternal,
   consolidate: cmdConsolidate,
   finalize: cmdFinalize,
   select: cmdSelect,
@@ -1069,7 +1232,8 @@ const commands = {
 try {
   if (!commands[command]) fail(t('unknownCommand', { list: Object.keys(commands).join(', ') }))
   if (NEEDS_REPO[command]) requireRepo(NEEDS_REPO[command])
-  commands[command]()
+  const pending = commands[command]()
+  if (pending instanceof Promise) pending.catch((e) => fail(`scanner: ${e.message}`))
 } catch (e) {
   fail(`scanner: ${e.message}`)
 }

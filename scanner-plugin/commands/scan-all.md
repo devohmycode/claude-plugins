@@ -1,6 +1,6 @@
 ---
 description: Run every available scan type, one after the other, after checking the profiles
-argument-hint: [--scope full|diff|<path>] [--mode report|fix|review] [--model <model>] [--effort <effort>]
+argument-hint: [--scope full|diff|<path>] [--mode report|fix|review] [--model <model>] [--effort <effort>] [--via claude,codex,…]
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
