@@ -12,7 +12,8 @@ judge the issues yourself: the agents do, and the script turns their verdicts in
 A **selection** is one or more tokens: issue numbers (`12`, `#12`), `priority:P1`,
 `severity:high`, `axis:security` (turned into labels through the project's templates),
 `label:<name>`, or `all` (every open issue). Tokens combine (all must match). `--max` bounds
-the count (`triage.max` of the config, 15 by default).
+the count (`triage.max` of the config, 15 by default); past it, the script prints a
+`DROPPED=` line with the issues left out — tell the user which ones.
 
 1. Without arguments: ask what to triage, stop.
 2. `TRACKER triage prepare <selection> [--max n] [--model …] [--effort …]` — writes one

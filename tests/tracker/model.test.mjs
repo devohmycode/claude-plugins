@@ -27,12 +27,14 @@ import {
 } from '../../tracker-plugin/scripts/lib.mjs'
 import {
   areaOf,
+  capSelection,
   decideTriage,
   groupBatches,
   parseSelector,
   planOpen,
   planSync,
   slug,
+  sortIssues,
 } from '../../tracker-plugin/scripts/plan.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -235,6 +237,18 @@ describe('selection and batches', () => {
       all: false,
     })
     assert.throws(() => parseSelector(['nonsense']), /selector/)
+  })
+
+  it('names the issues a selection leaves out past --max (issue #8)', () => {
+    const p1 = [{ name: 'priority: P1' }]
+    const issues = [404, 12, 13].map((number) => ({ number, labels: p1 }))
+    const { kept, dropped } = capSelection(sortIssues(plain, issues), 2)
+    assert.deepEqual(
+      kept.map((i) => i.number),
+      [12, 13]
+    )
+    assert.deepEqual(dropped, [404])
+    assert.deepEqual(capSelection(issues, 5).dropped, [])
   })
 
   it('groups by area, cuts groups larger than perBatch, puts the most urgent first', () => {
