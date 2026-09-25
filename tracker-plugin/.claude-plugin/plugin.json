@@ -35,7 +35,7 @@
     "triager_model": {
       "type": "string",
       "title": "Model — triager",
-      "description": "Model of the triager agents: inherit (the session's model), haiku, sonnet, opus or fable.",
+      "description": "Model of the triager agents: inherit (the session's model), haiku, sonnet, opus or fable. Default: sonnet.",
       "options": [
         "inherit",
         "haiku",
@@ -43,12 +43,12 @@
         "opus",
         "fable"
       ],
-      "default": "inherit"
+      "default": "sonnet"
     },
     "triager_effort": {
       "type": "string",
       "title": "Effort — triager",
-      "description": "Reasoning effort of the triager agents: inherit (the session's effort), low, medium, high, xhigh or max.",
+      "description": "Reasoning effort of the triager agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: medium.",
       "options": [
         "inherit",
         "low",
@@ -57,12 +57,12 @@
         "xhigh",
         "max"
       ],
-      "default": "inherit"
+      "default": "medium"
     },
     "skeptic_model": {
       "type": "string",
       "title": "Model — skeptic",
-      "description": "Model of the skeptic agents: inherit (the session's model), haiku, sonnet, opus or fable.",
+      "description": "Model of the skeptic agents: inherit (the session's model), haiku, sonnet, opus or fable. Default: inherit.",
       "options": [
         "inherit",
         "haiku",
@@ -75,7 +75,7 @@
     "skeptic_effort": {
       "type": "string",
       "title": "Effort — skeptic",
-      "description": "Reasoning effort of the skeptic agents: inherit (the session's effort), low, medium, high, xhigh or max.",
+      "description": "Reasoning effort of the skeptic agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
       "options": [
         "inherit",
         "low",
@@ -89,7 +89,7 @@
     "fixer_model": {
       "type": "string",
       "title": "Model — fixer",
-      "description": "Model of the fixer agents: inherit (the session's model), haiku, sonnet, opus or fable.",
+      "description": "Model of the fixer agents: inherit (the session's model), haiku, sonnet, opus or fable. Default: inherit.",
       "options": [
         "inherit",
         "haiku",
@@ -102,7 +102,7 @@
     "fixer_effort": {
       "type": "string",
       "title": "Effort — fixer",
-      "description": "Reasoning effort of the fixer agents: inherit (the session's effort), low, medium, high, xhigh or max.",
+      "description": "Reasoning effort of the fixer agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
       "options": [
         "inherit",
         "low",

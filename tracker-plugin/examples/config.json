@@ -50,13 +50,14 @@
       "tests": "test"
     }
   },
-  "triage": { "max": 15, "relabel": true, "commentOnHolds": false },
+  "triage": { "max": 15, "relabel": true, "commentOnHolds": false, "skipUnchanged": true, "perAgent": 3 },
   "batch": {
     "base": "developpement",
     "prBase": "developpement",
     "branchPrefix": "fix/",
     "perBatch": 5,
     "groupBy": "area",
+    "fixer": "batch",
     "setup": ["pnpm install --frozen-lockfile"],
     "checks": ["pnpm typecheck", "pnpm lint"],
     "draft": true

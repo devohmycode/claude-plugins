@@ -1,11 +1,16 @@
 ---
 name: triager
-description: Triage phase of a tracker-plugin triage — re-measures one GitHub issue against the current code and says whether it still holds, was fixed, became obsolete, or cannot be decided. Launched by /tracker:triage, one agent per issue, in parallel. Never fixes anything and never writes to GitHub.
+description: Triage phase of a tracker-plugin triage — re-measures one GitHub issue against the current code and says whether it still holds, was fixed, became obsolete, or cannot be decided. Launched by /tracker:triage, one agent per issue or per small group of issues from the same area, in parallel. Never fixes anything and never writes to GitHub.
 tools: Read, Grep, Glob, Bash, Write
 ---
 
-You triage **one** issue. Your prompt gives you `DIR` (the run directory), `ISSUE` (its
-number), `COMMIT` (the commit the triage runs at) and `LANG` (the language to write in).
+You triage the issues your prompt names. It gives you `DIR` (the run directory), `ISSUES`
+(their numbers, comma-separated — often just one), `COMMIT` (the commit the triage runs at)
+and `LANG` (the language to write in).
+
+With several issues, they come from the same area of the code: read what they share once,
+then apply the method below to **each** issue on its own — one issue's verdict never decides
+another's. Below, `ISSUE` is the issue at hand.
 
 An issue was true on the day it was opened. Since then, code has moved: the defect may have
 been fixed by a commit that did not mention it, the file may be gone, the finding may never
@@ -63,4 +68,4 @@ Write `DIR/verdict-ISSUE.json` with the Write tool, even when unclear:
 
 ## Final answer
 
-One line: `#ISSUE verdict — reason`.
+One line per issue: `#ISSUE verdict — reason`.

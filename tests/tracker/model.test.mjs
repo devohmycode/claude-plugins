@@ -3,6 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -15,7 +16,9 @@ import {
 } from '../../tracker-plugin/scripts/findings.mjs'
 import {
   DEFAULT_CONFIG,
+  agentOf,
   bodyOf,
+  commitIn,
   i18nFor,
   issueFacets,
   labelsOf,
@@ -35,6 +38,8 @@ import {
   planSync,
   slug,
   sortIssues,
+  triageGroups,
+  triageReference,
 } from '../../tracker-plugin/scripts/plan.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -304,5 +309,54 @@ describe('triage', () => {
     assert.deepEqual(d[2].actions, [{ type: 'relabel', from: 'P1', to: 'P2' }])
     assert.equal(d[3].final, 'unclear')
     assert.deepEqual(d[3].actions, [])
+  })
+})
+
+describe('spending fewer agents', () => {
+  it('reads the commit a finding was measured at from the footer only', () => {
+    const body = [
+      '<!-- tracker-key: fp:0123456789abcdef -->',
+      '**Source.** run `scan-1` · fingerprint `0123456789abcdef`',
+      '---',
+      '_Security scan of 24/09/2026 at commit `a1b2c3d` (`main`)._',
+    ].join('\n')
+    assert.equal(commitIn(body), 'a1b2c3d')
+    assert.equal(commitIn('**Source.** fingerprint `0123456789abcdef`'), null)
+  })
+
+  it('dates an issue by its last holding triage, else its commit, else its opening', () => {
+    const issue = { number: 1, commit: 'a1b2c3d', createdAt: '2026-09-24T10:00:00Z' }
+    assert.deepEqual(triageReference(issue, { commit: 'fff0000', run: 'triage-1' }), {
+      kind: 'triage',
+      ref: 'fff0000',
+      run: 'triage-1',
+    })
+    assert.deepEqual(triageReference(issue), { kind: 'commit', ref: 'a1b2c3d' })
+    assert.deepEqual(triageReference({ ...issue, commit: null }), { kind: 'date', ref: issue.createdAt })
+    assert.equal(triageReference({ number: 2 }), null)
+  })
+
+  it('groups the issues of one area for one triager, perAgent at most', () => {
+    const at = (number, location) => ({ number, labels: [], location })
+    const issues = [at(1, 'src/api/a.js:1'), at(2, 'src/api/b.js:2'), at(3, 'src/api/c.js:3'), at(4, 'web/x.js:1')]
+    assert.deepEqual(triageGroups(plain, issues, 1), [[1], [2], [3], [4]])
+    assert.deepEqual(triageGroups(plain, issues, 2), [[1, 2], [3], [4]])
+  })
+
+  it('runs the triager on a lighter model by default, the skeptic and fixer on the session', () => {
+    const saved = process.env.CLAUDE_CONFIG_DIR
+    process.env.CLAUDE_CONFIG_DIR = os.tmpdir()
+    try {
+      const triager = agentOf(plain, 'triager')
+      assert.equal(triager.model.value, 'sonnet')
+      assert.equal(triager.model.source, 'default')
+      assert.equal(triager.type, 'tracker:triager-medium')
+      assert.equal(agentOf(plain, 'skeptic').type, 'tracker:skeptic')
+      assert.equal(agentOf(plain, 'fixer').model.value, 'inherit')
+      assert.equal(agentOf(merge(DEFAULT_CONFIG, { roles: { triager: { model: 'inherit' } } }), 'triager').model.value, 'inherit')
+    } finally {
+      if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR
+      else process.env.CLAUDE_CONFIG_DIR = saved
+    }
   })
 })
