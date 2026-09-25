@@ -72,6 +72,38 @@ describe('command patterns', () => {
     assert.ok(MUTATING.some((re) => re.test('git commit -m x')))
     assert.ok(!MUTATING.some((re) => re.test('git log --oneline')))
   })
+
+  it('lets the read-only forms of merge-base, tag and stash through (issue #10)', () => {
+    const read = [
+      'git merge-base --is-ancestor a1b2c3d HEAD',
+      'git merge-base a b && git log -1',
+      'git tag',
+      'git tag --list',
+      'git tag -l',
+      'git tag -l "v1.*"',
+      'git tag --contains a1b2c3d',
+      'git tag --points-at HEAD',
+      'git tag --merged main --sort=-creatordate',
+      'git stash list',
+      'git stash show -p',
+    ]
+    const write = [
+      'git merge main',
+      'git merge',
+      'git tag v1.0',
+      'git tag -a v1.0 -m release',
+      'git tag -d v1.0',
+      'git tag v1.0 && git log -1',
+      'git tag -l && git tag v2',
+      'git stash',
+      'git stash; git log',
+      'git stash pop',
+      'git stash push -m wip',
+      'git branch -D old',
+    ]
+    for (const c of read) assert.ok(!MUTATING.some((re) => re.test(c)), `refused: ${c}`)
+    for (const c of write) assert.ok(MUTATING.some((re) => re.test(c)), `let through: ${c}`)
+  })
 })
 
 describe('guard', () => {
@@ -86,6 +118,8 @@ describe('guard', () => {
     assert.equal(guard('Bash', { command: 'gh issue close 1' }), 'deny')
     assert.equal(guard('Bash', { command: 'git commit -m x' }), 'deny')
     assert.equal(guard('Bash', { command: 'git log -3' }), 'allow')
+    assert.equal(guard('Bash', { command: 'git merge-base --is-ancestor HEAD HEAD' }), 'allow')
+    assert.equal(guard('Bash', { command: 'git merge HEAD' }), 'deny')
     write('.tracker/state.json', '{}')
   })
 
