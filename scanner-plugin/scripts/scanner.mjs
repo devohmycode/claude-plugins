@@ -16,7 +16,8 @@
 //   fix-status <run>                        what the remediators did, commits on the branch
 //   check                                   check profiles and config against the repo
 //   language [<code>]                       show the language, or set it in .scanner/config.json
-//   model [<type>|all] [--model …] [--effort …]  show the agents' model and effort, or set them
+//   model [<type>|all|triager|reporter] [--model …] [--effort …]
+//                                           show the agents' model and effort, or set them
 //   guard status | off | remediate <run> <id>
 //   repo plan | repo init [--commit]        when the project is not a git repository yet
 //
@@ -34,6 +35,8 @@ import {
   REPORT_FORMATS,
   SEVERITIES,
   STATE_DIR,
+  FOLLOW_TYPE,
+  ROLES,
   agentSettingFor,
   availableTypes,
   git,
@@ -47,6 +50,8 @@ import {
   readJson,
   readState,
   reportFormatFor,
+  roleOwnSetting,
+  roleSettingFor,
   sha1,
   stateFile,
   timestamp,
@@ -108,18 +113,18 @@ function positional(names) {
 }
 
 /**
- * The model and effort of a type's agents, the `--model` / `--effort` arguments
- * winning; an unsupported value fails. `recorded`: the values a scan ran with,
- * which its fixes keep over the config.
+ * The model and effort of a type's agents — of one `role` of them when given (its own
+ * values, see ROLES) — the `--model` / `--effort` arguments winning; an unsupported
+ * value fails. `recorded`: the values a scan ran with, which its fixes keep over the config.
  */
-function agentsOf(config, type, recorded = null) {
+function agentsOf(config, type, { recorded = null, role = null } = {}) {
   const agents = {}
   for (const setting of Object.keys(AGENT_SETTINGS)) {
     const asked = option(setting)
     const s =
       typeof asked !== 'string' && recorded?.[setting]
         ? { ...agentSettingFor(config, type, setting, recorded[setting]), source: 'run' }
-        : agentSettingFor(config, type, setting, typeof asked === 'string' ? asked : null)
+        : roleSettingFor(config, type, role, setting, typeof asked === 'string' ? asked : null)
     if (!s.known)
       fail(
         t('badAgentSetting', {
@@ -143,19 +148,43 @@ function settingSource(s, setting) {
     : t(SOURCE_KEYS[s.source])
 }
 
+/**
+ * `MODEL=` / `EFFORT=`: the type's; then, per role, `<ROLE>=` (the agent to launch) and
+ * `<ROLE>_MODEL=`. `roles`: role → its agents (the type's unless the role has its own).
+ */
 function printAgents(agents, roles) {
   console.log(`MODEL=${agents.model.value}`)
   console.log(`EFFORT=${agents.effort.value}`)
-  for (const role of roles)
-    console.log(`${role.toUpperCase()}=${agentName(role, agents.effort.value)}`)
-  console.log(
-    t('agentsAnnounce', {
-      model: agents.model.value,
-      modelSource: settingSource(agents.model, 'model'),
-      effort: agents.effort.value,
-      effortSource: settingSource(agents.effort, 'effort'),
-    })
+  for (const [role, own] of Object.entries(roles)) {
+    console.log(`${role.toUpperCase()}=${agentName(role, own.effort.value)}`)
+    console.log(`${role.toUpperCase()}_MODEL=${own.model.value}`)
+  }
+  const announce = (key, a, extra = {}) =>
+    console.log(
+      t(key, {
+        ...extra,
+        model: a.model.value,
+        modelSource: settingSource(a.model, 'model'),
+        effort: a.effort.value,
+        effortSource: settingSource(a.effort, 'effort'),
+      })
+    )
+  announce('agentsAnnounce', agents)
+  for (const [role, own] of Object.entries(roles))
+    if (own.model.role || own.effort.role) announce('roleAnnounce', own, { role })
+}
+
+/** The agents of each role of a scan: the type's, or the role's own values. */
+function rolesOf(config, type, agents, roles) {
+  return Object.fromEntries(
+    roles.map((role) => [role, ROLES.includes(role) ? agentsOf(config, type, { role }) : agents])
   )
+}
+
+/** A role's own value for /scanner:model and /scanner:check: `haiku (from /config)`, or the type's. */
+function roleValueText(s, setting) {
+  if (!s) return t('followsType')
+  return s.known ? `${s.value} (${settingSource(s, setting)})` : `${s.raw} ✗`
 }
 
 function profileOf(config, type) {
@@ -304,6 +333,7 @@ function cmdPrepare() {
   const mode = modeFor(config, typeof asked === 'string' ? asked : null)
   if (!mode.known) fail(t('badMode', { value: mode.value, list: MODES.join(', ') }))
   const agents = agentsOf(config, type)
+  const roles = rolesOf(config, type, agents, ['investigator', 'triager', 'reporter'])
   const engines = investigatorsOf(config, type)
 
   const all = filesInScope(config, scope)
@@ -323,6 +353,9 @@ function cmdPrepare() {
     mode: mode.mode,
     // Recorded so that the scan's fixes run with the same agents.
     agents: { model: agents.model.value, effort: agents.effort.value },
+    roles: Object.fromEntries(
+      Object.entries(roles).map(([r, a]) => [r, { model: a.model.value, effort: a.effort.value }])
+    ),
     commit: git(['rev-parse', '--short', 'HEAD'], root).trim(),
     branch: git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim(),
     started: new Date().toISOString(),
@@ -363,7 +396,7 @@ function cmdPrepare() {
       source: t(SOURCE_KEYS[mode.source]),
     })
   )
-  printAgents(agents, ['investigator', 'triager', 'reporter'])
+  printAgents(agents, roles)
   // BATCHES: the ones for the plugin's investigator agents; EXTERNAL: the others, run
   // by `investigate-external`.
   console.log(`BATCHES=${batches.filter((b) => b.engine === CLAUDE).map((b) => b.id).join(',')}`)
@@ -795,7 +828,7 @@ function cmdFix() {
   // The scan's own agents, unless --model / --effort say otherwise.
   const metaFile = path.join(dir, 'meta.json')
   const recorded = existsSync(metaFile) ? readJson(metaFile).agents : null
-  const agents = agentsOf(config, final.type, recorded)
+  const agents = agentsOf(config, final.type, { recorded })
 
   const base = config.remediationBase ?? git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim()
   const stem = `${config.branchPrefix ?? 'fix/'}scan-${final.type}-${isoDay().YYYYMMDD}`
@@ -847,7 +880,7 @@ function cmdFix() {
   console.log(`BASE=${base}`)
   console.log(`WORKTREE=${remediation.worktree}`)
   console.log(`FINDINGS=${remediation.findings.join(',')}`)
-  printAgents(agents, ['remediator'])
+  printAgents(agents, { remediator: agents })
   console.log(t('fixReady', { branch, base, n: selected.length }))
   for (const f of selected) console.log(`${f.id} [${f.severity}] ${f.title} — ${location(f)}`)
 }
@@ -968,6 +1001,27 @@ function cmdCheck() {
       }
     }
   }
+  for (const role of ROLES)
+    for (const setting of Object.keys(AGENT_SETTINGS)) {
+      const s = roleOwnSetting(config, role, setting)
+      const label = t(`setting_${setting}`)
+      if (!s) lines.push(t('roleSettingFollows', { role, setting: label }))
+      else if (s.known)
+        lines.push(
+          t('agentSettingLine', { type: role, setting: label, value: s.value, source: settingSource(s, setting) })
+        )
+      else {
+        failures++
+        lines.push(
+          t('unsupportedRoleSetting', {
+            role,
+            setting: label,
+            value: s.raw,
+            list: [FOLLOW_TYPE, ...AGENT_SETTINGS[setting].values].join(', '),
+          })
+        )
+      }
+    }
 
   const check = config.check ?? {}
   const tracked = git(['ls-files'], root).split('\n').filter(Boolean)
@@ -1084,17 +1138,22 @@ function cmdLanguage() {
  * from. With `--model` and/or `--effort`: writes them into .scanner/config.json, for
  * one type (`types.<type>`) or, with `all`, for every type (top-level keys).
  */
-const MODEL_USAGE = 'model [<type>|all] [--model <model>] [--effort <effort>]'
+const MODEL_USAGE = `model [<type>|all|${ROLES.join('|')}] [--model <model>] [--effort <effort>]`
 
 function cmdModel() {
   const config = readConfig(root)
   const types = availableTypes(root, config)
   const [target] = positional(Object.keys(AGENT_SETTINGS))
+  const isRole = ROLES.includes(target)
   const wanted = {}
   for (const setting of Object.keys(AGENT_SETTINGS)) {
     const asked = option(setting)
     if (asked === true) fail(t('usage', { syntax: MODEL_USAGE }))
     if (typeof asked !== 'string') continue
+    if (isRole && asked.trim().toLowerCase() === FOLLOW_TYPE) {
+      wanted[setting] = FOLLOW_TYPE
+      continue
+    }
     const s = agentSettingFor(config, target ?? 'all', setting, asked)
     if (!s.known)
       fail(
@@ -1108,7 +1167,9 @@ function cmdModel() {
   }
 
   if (!Object.keys(wanted).length) {
-    for (const type of target && target !== 'all' ? [target] : types) {
+    const showTypes = isRole ? [] : target && target !== 'all' ? [target] : types
+    const showRoles = isRole ? [target] : target && target !== 'all' ? [] : ROLES
+    for (const type of showTypes) {
       if (!types.includes(type)) fail(t('unknownType', { type, list: types.join(', ') }))
       const model = agentSettingFor(config, type, 'model')
       const effort = agentSettingFor(config, type, 'effort')
@@ -1122,6 +1183,14 @@ function cmdModel() {
         })
       )
     }
+    for (const role of showRoles)
+      console.log(
+        t('roleLine', {
+          role,
+          model: roleValueText(roleOwnSetting(config, role, 'model'), 'model'),
+          effort: roleValueText(roleOwnSetting(config, role, 'effort'), 'effort'),
+        })
+      )
     console.log(
       t('agentsChoices', {
         models: AGENT_SETTINGS.model.values.join(', '),
@@ -1132,17 +1201,23 @@ function cmdModel() {
   }
 
   if (!target) fail(t('usage', { syntax: MODEL_USAGE }))
-  if (target !== 'all' && !types.includes(target))
-    fail(t('unknownType', { type: target, list: types.join(', ') }))
+  if (target !== 'all' && !isRole && !types.includes(target))
+    fail(t('unknownType', { type: target, list: [...types, ...ROLES].join(', ') }))
   const file = path.join(root, CONFIG_FILE)
   const own = existsSync(file) ? readJson(file) : {}
-  // `inherit` removes the key: the setting then gives way to the next source.
+  // `inherit` removes the key: the setting then gives way to the next source. For a role,
+  // `type` does, and `inherit` is kept (the session's, whatever the type says).
   const put = (object, setting) => {
-    if (wanted[setting] === 'inherit') delete object[setting]
+    if (wanted[setting] === (isRole ? FOLLOW_TYPE : 'inherit')) delete object[setting]
     else object[setting] = wanted[setting]
   }
   if (target === 'all') for (const setting of Object.keys(wanted)) put(own, setting)
-  else {
+  else if (isRole) {
+    own.roles = { ...own.roles, [target]: { ...own.roles?.[target] } }
+    for (const setting of Object.keys(wanted)) put(own.roles[target], setting)
+    if (!Object.keys(own.roles[target]).length) delete own.roles[target]
+    if (!Object.keys(own.roles).length) delete own.roles
+  } else {
     own.types = { ...own.types, [target]: { ...own.types?.[target] } }
     for (const setting of Object.keys(wanted)) put(own.types[target], setting)
     if (!Object.keys(own.types[target]).length) delete own.types[target]

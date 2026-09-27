@@ -75,7 +75,7 @@ Nothing is created without that answer. From the script: `scanner.mjs repo plan`
 | `/scanner:remediate <run> <selection>`                       | Fixes the selected findings on one new fix branch, in a worktree; commits, never pushes.  |
 | `/scanner:guard [status\|off]`                               | Shows or lifts the guard (after an interrupted scan).                                     |
 | `/scanner:language [en\|fr\|es\|de]`                         | Shows or sets the plugin language (see below).                                            |
-| `/scanner:model [<type>\|all] [--model …] [--effort …]`     | Shows or sets the model and effort of each type's agents: see [Agents](#agents-model-and-effort). |
+| `/scanner:model [<type>\|all\|triager\|reporter] [--model …] [--effort …]` | Shows or sets the model and effort of each type's agents, or of the triager and the reporter: see [Agents](#agents-model-and-effort). |
 
 ## How a scan runs
 
@@ -147,6 +147,16 @@ First match wins, per type and per setting:
 4. for you, in every project: the **Model — <type>** and **Effort — <type>** rows of the
    scanner in `/config` (built-in types only; an overlay-only type uses 1 to 3);
 5. `inherit`.
+
+The **triager** and the **reporter** can have their own values, for every scan type — for
+instance a light model for the report while the investigation runs on a strong one. They
+come after the `--model` / `--effort` arguments and before everything else:
+
+1. per project: `roles.<role>.model` / `.effort` in `.scanner/config.json` —
+   `/scanner:model reporter --model haiku --effort low` writes them;
+2. for you, in every project: the **Model — <role> (every scan)** and **Effort — <role>
+   (every scan)** rows of the scanner in `/config`;
+3. `type` (the default) sets nothing: the role follows the scan type as above.
 
 `/scanner:model` without options shows every type's values and where they come from;
 `/scanner:check` shows them too and flags an unsupported value with `✗`.
@@ -273,7 +283,8 @@ See `examples/config.json`. Keys:
 - `mode` — `report` (default), `fix` or `review`: see [Scan modes](#scan-modes);
   `fixMinSeverity` (`low`) — the lowest severity that `all` selects;
 - `reportFormat` — `html` (default) or `md`: see [Report format](#report-format);
-- `model`, `effort` — for every type: see [Agents](#agents-model-and-effort);
+- `model`, `effort` — for every type; `roles.triager` / `roles.reporter`: `model`,
+  `effort` for that role in every type: see [Agents](#agents-model-and-effort);
 - `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
   `reportInstructions` (passed to the reporter);
 - `reportAccess` — `read` / `write` globs opened to the reporter once the scan is finalized,
