@@ -22,8 +22,8 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
   in `.scanner/profiles/`), splits the scope into batches and **arms the guard**: during the
   scan, files excluded by the profile are unreadable and writes are limited to the run
   directory and the reports.
-- Note `RUN=`, `DIR=`, `LANG=`, `MODE=`, `MODEL=`, `INVESTIGATOR=`, `TRIAGER=` and `REPORTER=`
-  in its output. Everything you say to the user from now on is in the language `LANG=` names
+- Note `RUN=`, `DIR=`, `LANG=`, `MODE=`, and for each role (`INVESTIGATOR`, `TRIAGER`,
+  `REPORTER`) its agent `<ROLE>=` and its model `<ROLE>_MODEL=` in its output. Everything you say to the user from now on is in the language `LANG=` names
   (`en`, `fr`, `es`, `de`). If it fails, show the error and stop.
 - `MODE=` decides how the scan ends (the `--mode` argument, else `mode` in
   `.scanner/config.json`, else the **Scan mode** row of `/config`, else `report`):
@@ -31,12 +31,14 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
   - `fix` — no report: every retained finding is fixed on a new branch;
   - `review` — the report, then **the user chooses** the findings to fix, then they are fixed
     on a new branch.
-- `MODEL=` and the agent names carry the **model and reasoning effort** of this scan type's
-  agents (the `--model` / `--effort` arguments, else `.scanner/config.json`, else the type's
-  **Model** / **Effort** rows of `/config`, else `inherit`). Every agent of the scan is launched
-  under the name the script printed for its role (`scanner:investigator-high` carries the
-  effort `high`), with the Agent tool's `model` parameter set to `MODEL=` — **omit the
-  parameter when `MODEL=inherit`**. Never pick another model or effort yourself.
+- The agent names and `<ROLE>_MODEL=` carry the **model and reasoning effort** of each role
+  (the `--model` / `--effort` arguments, else the triager's or reporter's own values, else
+  `.scanner/config.json`, else the type's **Model** / **Effort** rows of `/config`, else
+  `inherit`). Every agent of the scan is launched under the name the script printed for its
+  role (`scanner:investigator-high` carries the effort `high`), with the Agent tool's `model`
+  parameter set to that role's `<ROLE>_MODEL=` — **omit the parameter when it is `inherit`**.
+  Roles may differ (`TRIAGER_MODEL=haiku` beside `INVESTIGATOR_MODEL=opus`): never use one
+  role's values for another, and never pick a model or effort yourself.
 - `BATCHES=` lists the batches for the plugin's investigator agents, `EXTERNAL=` the batches
   given to external agents (`B2:codex,B4:cursor`), chosen by `--via`, else `investigators` in
   `.scanner/config.json`, else none. When `EXTERNAL=` is not empty, relay to the user the
@@ -47,7 +49,7 @@ Otherwise: `SCANNER prepare $ARGUMENTS`.
 In **a single message**:
 
 - launch one agent per batch of `BATCHES=` — type `INVESTIGATOR=` (`scanner:investigator` or
-  one of its effort variants), model `MODEL=` — with this prompt:
+  one of its effort variants), model `INVESTIGATOR_MODEL=` — with this prompt:
 
   ```
   DIR=<run directory>
@@ -70,7 +72,7 @@ triage batches. Note `TRIAGE_BATCHES=`. If it is empty, go to step 5.
 ## 4. Triage — in parallel
 
 In a single message, launch one agent per triage batch — type `TRIAGER=`,
-model `MODEL=`:
+model `TRIAGER_MODEL=`:
 
 ```
 DIR=<run directory>
@@ -86,7 +88,7 @@ persisting, resolved), archives the result. Note `FORMAT=` (`html` or `md`) and 
 
 In mode `fix`, skip this step: no report is written.
 
-Launch one agent — type `REPORTER=`, model `MODEL=`:
+Launch one agent — type `REPORTER=`, model `REPORTER_MODEL=`:
 
 ```
 DIR=<run directory>

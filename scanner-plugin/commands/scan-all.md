@@ -17,8 +17,9 @@ type.
 3. For each type, **one after the other** (the guard holds one scan at a time, each with its
    own exclusions), follow the `/scanner:scan` procedure with `<type> $ARGUMENTS`, steps 1 to 7:
    prepare, investigate in parallel, consolidate, triage in parallel, finalize, report
-   (unless `MODE=fix`), guard off. Each type has its own model and effort (the `MODEL=` and
-   agent-name lines of its `prepare`), unless `--model` / `--effort` set them for all.
+   (unless `MODE=fix`), guard off. Each type has its own model and effort (the agent-name and
+   `<ROLE>_MODEL=` lines of its `prepare`; the triager and the reporter may have their own),
+   unless `--model` / `--effort` set them for all.
 4. Then, by mode (the `MODE=` line, identical for every type):
    - `report`: nothing more.
    - `fix`: for each type with retained findings, one after the other, steps 8 and 9 of

@@ -67,6 +67,14 @@ export const AGENT_SETTINGS = {
   },
 }
 
+/**
+ * Roles whose model and effort can be set apart from the scan type's, for every type:
+ * `roles.<role>.<setting>` in the project config, the role's rows in /config.
+ */
+export const ROLES = ['triager', 'reporter']
+/** A role's value that gives way to the scan type's setting (the rows' default). */
+export const FOLLOW_TYPE = 'type'
+
 export const DEFAULT_CONFIG = {
   // null: CLAUDE_PLUGINS_LANGUAGE, then English (see i18n.mjs).
   language: null,
@@ -91,6 +99,8 @@ export const DEFAULT_CONFIG = {
   // `read` globs (the reports directory is always readable), `write` globs (e.g. a registry).
   reportAccess: { read: [], write: [] },
   types: {},
+  // `roles.<role>.model` / `.effort`: a role's own values, over every type's (see ROLES).
+  roles: {},
   check: {},
   guard: {
     ttlHours: 6,
@@ -198,13 +208,39 @@ export const agentOptionKey = (type, setting) => `${type.replace(/[^a-z0-9]+/gi,
  * `source` is arg, project, user or default.
  */
 export function agentSettingFor(config, type, setting, override = null) {
-  const { values, aliases } = AGENT_SETTINGS[setting]
-  const candidates = [
+  return resolveSetting(setting, [
     ['arg', override],
     ['project', config.types?.[type]?.[setting]],
     ['project', config[setting]],
     ['user', userOption(PLUGIN_ROOT, agentOptionKey(type, setting))],
-  ]
+  ])
+}
+
+/**
+ * A role's own model or effort, for every scan type: `roles.<role>.<setting>` in the
+ * project config, then the role's row in /config. null when neither sets one (or
+ * both say `type`): the role then follows the scan type.
+ */
+export function roleOwnSetting(config, role, setting) {
+  const candidates = [
+    ['project', config.roles?.[role]?.[setting]],
+    ['user', userOption(PLUGIN_ROOT, agentOptionKey(role, setting))],
+  ].filter(([, v]) => v != null && !['', FOLLOW_TYPE].includes(String(v).trim().toLowerCase()))
+  return candidates.length ? { ...resolveSetting(setting, candidates), role: true } : null
+}
+
+/**
+ * The model or effort of a role's agents in a scan of `type`: the `--model` /
+ * `--effort` argument, the role's own value (`roleOwnSetting`), then the type's.
+ */
+export function roleSettingFor(config, type, role, setting, override = null) {
+  const own = override == null && ROLES.includes(role) ? roleOwnSetting(config, role, setting) : null
+  return own ?? agentSettingFor(config, type, setting, override)
+}
+
+/** First non-empty candidate, checked against the setting's values and aliases. */
+function resolveSetting(setting, candidates) {
+  const { values, aliases } = AGENT_SETTINGS[setting]
   const [source, value] = candidates.find(([, v]) => v != null && String(v).trim() !== '') ?? [
     'default',
     null,

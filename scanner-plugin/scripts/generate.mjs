@@ -5,14 +5,22 @@
 //     the Agent tool takes a model per call but no effort, and an agent's effort
 //     can only come from its frontmatter;
 //   - the /config rows of each built-in profile (`<type>_model`, `<type>_effort` in
-//     `userConfig` of .claude-plugin/plugin.json).
+//     `userConfig` of .claude-plugin/plugin.json), and those of the roles that can be
+//     set apart from the type (`triager_model`, `reporter_effort`…).
 //
 //   node scanner-plugin/scripts/generate.mjs           write them
 //   node scanner-plugin/scripts/generate.mjs --check   change nothing; exit 1 if one is stale
 
 import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { AGENT_SETTINGS, PLUGIN_ROOT, agentOptionKey, builtinTypes } from './lib.mjs'
+import {
+  AGENT_SETTINGS,
+  FOLLOW_TYPE,
+  PLUGIN_ROOT,
+  ROLES,
+  agentOptionKey,
+  builtinTypes,
+} from './lib.mjs'
 
 const check = process.argv.includes('--check')
 const EFFORTS = AGENT_SETTINGS.effort.values.filter((e) => e !== 'inherit')
@@ -96,6 +104,22 @@ for (const type of builtinTypes()) {
     description: `Reasoning effort of the ${type} scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.`,
     options: AGENT_SETTINGS.effort.values,
     default: 'inherit',
+  }
+}
+for (const role of ROLES) {
+  rows[agentOptionKey(role, 'model')] = {
+    type: 'string',
+    title: `Model — ${role} (every scan)`,
+    description: `Model of the ${role} agents, whatever the scan type: ${FOLLOW_TYPE} (the scan type's Model row), inherit (the session's model), haiku, sonnet, opus or fable.`,
+    options: [FOLLOW_TYPE, ...AGENT_SETTINGS.model.values],
+    default: FOLLOW_TYPE,
+  }
+  rows[agentOptionKey(role, 'effort')] = {
+    type: 'string',
+    title: `Effort — ${role} (every scan)`,
+    description: `Reasoning effort of the ${role} agents, whatever the scan type: ${FOLLOW_TYPE} (the scan type's Effort row), inherit (the session's effort), low, medium, high, xhigh or max.`,
+    options: [FOLLOW_TYPE, ...AGENT_SETTINGS.effort.values],
+    default: FOLLOW_TYPE,
   }
 }
 // Compared as JSON, not as text: the manifest's layout is left alone.
