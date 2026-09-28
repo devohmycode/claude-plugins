@@ -67,7 +67,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
   résumé de la structure par script, S1 de `TASKS.md` pré-coché.
   Refs: PRD § 6.1 (D-5).
-- [ ] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.
+- [x] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.
 
 - [ ] **S2 acceptance** — Sur un dépôt vide, `/docflow:run` répété avec les
   approbations produit les quatre documents et le bloc `CLAUDE.md` ; chaque
