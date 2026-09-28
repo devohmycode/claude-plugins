@@ -88,10 +88,11 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S3-T5** `check` couvre les jumeaux : sections manquantes, en trop ou
   obsolètes. Refs: PRD § 6.2 (L-4).
 
-- [ ] **S3 acceptance** — Avec `doc_languages: fr`, la chaîne de S2 produit
+- [x] **S3 acceptance** — Avec `doc_languages: fr`, la chaîne de S2 produit
   les jumeaux français ; modifier une section anglaise puis lancer
   `/docflow:translate` n'envoie que cette section ; `/docflow:check` ne
   signale plus rien ensuite.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on the S2 acceptance project with doc_languages fr: /docflow:translate wrote PRD-FR, ARCHITECTURE-FR, SPECS-FR and TASKS-FR through haiku translator agents (ids, grammar and paths kept); after one sentence was added to SPECS § 3, /docflow:translate specs sent a source file holding that section only; docflow check reported ISSUES=0 before and after.*
 
 ## S4 — Moteur de mise en œuvre
 

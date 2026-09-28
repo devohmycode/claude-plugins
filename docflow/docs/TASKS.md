@@ -82,9 +82,10 @@ acceptance test and is validated only when it passes.
 - [x] **S3-T5** `check` covers twins: missing, extra or outdated sections.
   Refs: PRD § 6.2 (L-4).
 
-- [ ] **S3 acceptance** — With `doc_languages: fr`, the chain of S2 produces
+- [x] **S3 acceptance** — With `doc_languages: fr`, the chain of S2 produces
   French twins; changing one English section and running `/docflow:translate`
   sends only that section; `/docflow:check` reports nothing afterwards.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on the S2 acceptance project with doc_languages fr: /docflow:translate wrote PRD-FR, ARCHITECTURE-FR, SPECS-FR and TASKS-FR through haiku translator agents (ids, grammar and paths kept); after one sentence was added to SPECS § 3, /docflow:translate specs sent a source file holding that section only; docflow check reported ISSUES=0 before and after.*
 
 ## S4 — Implementation engine
 
