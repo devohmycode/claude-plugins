@@ -113,7 +113,7 @@ acceptance test and is validated only when it passes.
 
 - [x] **S5-T1** `lib/issues.mjs` and `issues push`: create, update, never
   duplicate; tracker key comment. Refs: SPECS § 8, PRD § 6.8.
-- [ ] **S5-T2** Issue numbers in `TASKS.md`; `Closes #` in draft pull requests.
+- [x] **S5-T2** Issue numbers in `TASKS.md`; `Closes #` in draft pull requests.
   Refs: PRD § 6.8 (S-2).
 - [x] **S5-T3** `issues pull` and `--apply`. Refs: PRD § 6.8 (S-3).
 - [ ] **S5-T4** `/docflow:issues` command with the repository and GitHub
