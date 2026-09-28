@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans (close what was resolved, reopen what came back), triage open issues against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch.",
   "author": {
     "name": "DevOhMyCode",
@@ -103,6 +103,33 @@
       "type": "string",
       "title": "Effort — fixer",
       "description": "Reasoning effort of the fixer agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "inherit"
+    },
+    "planner_model": {
+      "type": "string",
+      "title": "Model — planner",
+      "description": "Model of the planner agents: inherit (the session's model), haiku, sonnet, opus or fable. Default: inherit.",
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
+      "default": "inherit"
+    },
+    "planner_effort": {
+      "type": "string",
+      "title": "Effort — planner",
+      "description": "Reasoning effort of the planner agents: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
       "options": [
         "inherit",
         "low",

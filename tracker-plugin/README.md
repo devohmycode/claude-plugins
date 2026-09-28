@@ -7,6 +7,7 @@ re-checks them against the code as it moves, and fixes them in batches.
 
 ```
  scan / audit ──► open ──► sync ──► triage ──► batch ──► pull request ──► closed on merge
+                                       └──► plan ──► lot, lot, lot… (any agent, one at a time)
 ```
 
 Every step that writes to GitHub shows a plan first and waits for your agreement. Agents
@@ -24,7 +25,9 @@ role.
 | `/tracker:status`              | Open issues by priority, how many carry a finding key, recent runs, the guard                             |
 | `/tracker:check`               | Config, label templates, GitHub CLI, sources, findings files, agent settings                              |
 | `/tracker:language [code]`     | Shows or sets the plugin language                                                                         |
-| `/tracker:model [role]`        | Shows or sets the model and effort of the triager, skeptic and fixer agents                               |
+| `/tracker:plan <selection>`    | A planner cuts the open issues into numbered lots: a committed plan (JSON + HTML), the protocol in `CLAUDE.md` / `AGENTS.md` |
+| `/tracker:lot <id|next>`      | The lock shared by every agent, then one lot: branch, fixers, checks, draft PR; the lot marked, the lock released |
+| `/tracker:model [role]`        | Shows or sets the model and effort of the triager, skeptic, fixer and planner agents                      |
 | `/tracker:guard [status\|off]` | Shows or lifts the guard after an interrupted triage or batch                                             |
 
 A **selection** is one or more tokens: issue numbers (`12`, `#12`), `priority:P1`,
@@ -165,11 +168,59 @@ groups larger than `batch.perBatch`. For each batch you pick:
    `Closes #n` for the fixed issues and `Refs #n` for the others. Issues close when it
    reaches the default branch. The tracker never merges.
 
+## Plans and lots
+
+A batch run serves one session and is not committed. When the issues are many, the
+work spans days and several agents — Claude Code, Codex, a shell — a **plan** is the durable
+form: the open issues cut into numbered lots, committed, fixed **one lot at a time**.
+
+- **`/tracker:plan all`** — the script reads the issues into a draft (with the files each one
+  cites); a **planner** agent groups them into lots by subject and region of the code, orders
+  them by urgency, flags the lots that are not a diff (`codeFix: false`) or that wait for a
+  deployment (`awaitDeploy: true`); the script checks that every issue is in exactly one lot,
+  lists the lots that cite the same files (`conflicts`), and writes two twin files into
+  `plan.dir`: `<name>.json` for agents, `<name>.html` for readers — the HTML is regenerated
+  from the JSON on every change, never patched.
+- **`/tracker:lot next`** — takes the **lock**, then runs the lot as a batch (branch
+  `fix/lot-<id>-…`, worktree, fixers, checks, draft pull request). Opening the pull request
+  marks the lot done in the plan and releases the lock.
+- **The lock** lives in git's common directory (`git rev-parse --git-common-dir`): shared by
+  every worktree of the clone, never committed. Taking it is atomic; `lot take` exits `0`
+  when the lock is yours, **`75` when another lot is in progress** (run it again — `--wait`
+  polls for `plan.waitMinutes`, below the 10-minute limit of agents' shell tools), `2` for a
+  lot that does not exist or is done. A lock not renewed for `plan.staleHours` can be taken
+  over: an agent that died in a lot does not block the others.
+- **The plan is committed on its base branch**, never on a lot's branch: marking lots on
+  their own fix branches makes each merge conflict with the next. `lot commit` refuses
+  another branch.
+
+Agents outside Claude Code need two things, both written by the plugin:
+
+- **the protocol** — `instructions --apply` writes it into `CLAUDE.md`, `AGENTS.md`…
+  (`plan.instructionFiles`) between `<!-- tracker:lots:start -->` and
+  `<!-- tracker:lots:end -->`, in the plugin's language; run again, it replaces its block;
+- **the commands** — `vendor --apply` copies the plugin's scripts and messages into
+  `.tracker/bin/` (to commit), so that `node .tracker/bin/scripts/tracker.mjs lot take next
+  --agent codex --wait` works in any clone, without the plugin. `plan.cli` is how the
+  protocol names that command.
+
+```
+<cli> lot take <id|next> --agent <name> [--wait]   the lock (0 / 75 / 2)
+<cli> lot status | lot lock                          the lots · who holds the lock
+<cli> lot mark <id> --pr <n> [--state draft|merged]  done; releases the lock
+<cli> lot release <id>                               a lot given up
+<cli> lot commit                                     the plan, on its base branch
+<cli> lot sync --apply                               merged pull requests → the plan
+```
+
+A plan written by hand in the earlier French format (`decker.lots-issues/1`) is converted
+with `plan import <file> --apply`: done lots keep their pull request.
+
 ## The guard (hooks)
 
 | While…     | Refused                                                                                                  |
 | ---------- | -------------------------------------------------------------------------------------------------------- |
-| a triage   | any write outside the run directory, mutating commands, any write to GitHub                              |
+| a triage or a plan | any write outside the run directory, mutating commands, any write to GitHub                              |
 | a batch    | the paths and commands the project denies, commits on a protected branch, `git push`, any write to GitHub |
 | always     | after a commit: the trailers listed in `commits.forbiddenTrailers` are reported                          |
 
@@ -183,6 +234,10 @@ expires by itself after `guard.ttlHours`; `/tracker:guard off` lifts it after an
 .tracker/state.json                       the armed guard
 .tracker/runs/triage-<ts>/                issue-<n>.json, verdict-<n>.json, check-<n>.json, final.json
 .tracker/runs/batch-<ts>/                 plan.json, issue-<n>.json, batch-<B>.json, outcome-<n>.json
+.tracker/runs/plan-<ts>/                  draft.json, issue-<n>.json, proposal.json (the planner's)
+.tracker/bin/                             vendored scripts for agents without the plugin (committed)
+<plan.dir>/<name>.json, <name>.html       the plan and its reader's twin (committed)
+<git common dir>/tracker-lot.lock         the lock of the lot in progress (never committed)
 .tracker/worktrees/<run>-<B>/             one worktree per started batch
 ```
 
@@ -208,14 +263,17 @@ complete project configuration (French labels).
 - `triage` — `max`, `relabel`, `commentOnHolds`, `skipUnchanged` (`true`), `perAgent` (`1`).
 - `batch` — `base`, `prBase`, `branchPrefix`, `perBatch`, `max`, `groupBy`
   (`area`, `axis`, `none`), `fixer` (`issue`, `batch`), `setup`, `checks`, `checkTimeoutMinutes`, `draft`.
+- `plan` — `dir` (`docs/issues`), `name` (`{YYYY}-{MM}-{DD}-plan`), `max`, `perLot` (a hint to
+  the planner), `staleHours` (4), `waitMinutes` (9), `cli` (how the protocol names the
+  script), `instructionFiles` (`CLAUDE.md`, `AGENTS.md`), `commitPrefix` (`docs(issues)`).
 - `guard` — `ttlHours`, `writeDenied` (globs), `commandsDenied` (regexes),
   `protectedBranches`.
 - `commits.forbiddenTrailers` — regexes checked after each commit.
-- `model`, `effort`, `roles.<triager|skeptic|fixer>.model|effort` — see `/tracker:model`.
+- `model`, `effort`, `roles.<triager|skeptic|fixer|planner>.model|effort` — see `/tracker:model`.
 
 ## Agents: model and effort
 
-Three roles — `triager`, `skeptic`, `fixer` — each with a **Model** and an **Effort** row in
+Four roles — `triager`, `skeptic`, `fixer`, `planner` — each with a **Model** and an **Effort** row in
 `/config`. The Agent tool takes a model per call but no effort, so each agent ships one variant
 per effort (`tracker:fixer-high`…), generated by `scripts/generate.mjs`; the commands pick the
 variant. Precedence: command arguments, the role in the project config, the project's

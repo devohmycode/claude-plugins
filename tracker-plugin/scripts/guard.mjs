@@ -134,7 +134,8 @@ try {
   const toolInput = input.tool_input ?? {}
   if (event === 'pre') {
     if (state?.lang) t = i18nFor(state.lang).t
-    if (state?.mode === 'triage') duringTriage(state, root, tool, toolInput)
+    // A planner, like a triager, reads the code and writes only in its run directory.
+    if (state?.mode === 'triage' || state?.mode === 'plan') duringTriage(state, root, tool, toolInput)
     else if (state?.mode === 'batch') duringBatch(state, root, tool, toolInput, input.cwd)
   } else if (
     event === 'post' &&

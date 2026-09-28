@@ -1,6 +1,6 @@
 {
   "name": "scanner",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation — with built-in profiles and optional per-project overlays.",
   "author": {
     "name": "DevOhMyCode",
@@ -9,125 +9,241 @@
   "homepage": "https://github.com/devohmycode/claude-plugins/tree/main/scanner-plugin",
   "repository": "https://github.com/devohmycode/claude-plugins",
   "license": "MIT",
-  "keywords": ["scan", "audit", "security", "performance", "accessibility", "dead-code", "coverage", "code-review"],
+  "keywords": [
+    "scan",
+    "audit",
+    "security",
+    "performance",
+    "accessibility",
+    "dead-code",
+    "coverage",
+    "code-review"
+  ],
   "userConfig": {
     "language": {
       "type": "string",
       "title": "Language",
       "description": "Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).",
-      "options": ["en", "fr", "es", "de"],
+      "options": [
+        "en",
+        "fr",
+        "es",
+        "de"
+      ],
       "default": "en"
     },
     "scan_mode": {
       "type": "string",
       "title": "Scan mode",
       "description": "What a scan ends with: report (the report only), fix (fixes on a new branch, no report) or review (the report, then you pick the findings, then fixes on a new branch).",
-      "options": ["report", "fix", "review"],
+      "options": [
+        "report",
+        "fix",
+        "review"
+      ],
       "default": "report"
     },
     "report_format": {
       "type": "string",
       "title": "Report format",
       "description": "Format of scan reports: html (self-contained page) or md (Markdown).",
-      "options": ["html", "md"],
+      "options": [
+        "html",
+        "md"
+      ],
       "default": "html"
     },
     "accessibility_model": {
       "type": "string",
       "title": "Model — accessibility",
       "description": "Model of the accessibility scan's agents: inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "inherit"
     },
     "accessibility_effort": {
       "type": "string",
       "title": "Effort — accessibility",
       "description": "Reasoning effort of the accessibility scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "inherit"
     },
     "dead_code_model": {
       "type": "string",
       "title": "Model — dead-code",
       "description": "Model of the dead-code scan's agents: inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "inherit"
     },
     "dead_code_effort": {
       "type": "string",
       "title": "Effort — dead-code",
       "description": "Reasoning effort of the dead-code scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "inherit"
     },
     "performance_model": {
       "type": "string",
       "title": "Model — performance",
       "description": "Model of the performance scan's agents: inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "inherit"
     },
     "performance_effort": {
       "type": "string",
       "title": "Effort — performance",
       "description": "Reasoning effort of the performance scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "inherit"
     },
     "security_model": {
       "type": "string",
       "title": "Model — security",
       "description": "Model of the security scan's agents: inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "inherit"
     },
     "security_effort": {
       "type": "string",
       "title": "Effort — security",
       "description": "Reasoning effort of the security scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "inherit"
     },
     "test_coverage_model": {
       "type": "string",
       "title": "Model — test-coverage",
       "description": "Model of the test-coverage scan's agents: inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "inherit"
     },
     "test_coverage_effort": {
       "type": "string",
       "title": "Effort — test-coverage",
       "description": "Reasoning effort of the test-coverage scan's agents: inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "inherit"
     },
     "triager_model": {
       "type": "string",
       "title": "Model — triager (every scan)",
       "description": "Model of the triager agents, whatever the scan type: type (the scan type's Model row), inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["type", "inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "type",
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "type"
     },
     "triager_effort": {
       "type": "string",
       "title": "Effort — triager (every scan)",
       "description": "Reasoning effort of the triager agents, whatever the scan type: type (the scan type's Effort row), inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["type", "inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "type",
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "type"
     },
     "reporter_model": {
       "type": "string",
       "title": "Model — reporter (every scan)",
       "description": "Model of the reporter agents, whatever the scan type: type (the scan type's Model row), inherit (the session's model), haiku, sonnet, opus or fable.",
-      "options": ["type", "inherit", "haiku", "sonnet", "opus", "fable"],
+      "options": [
+        "type",
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
       "default": "type"
     },
     "reporter_effort": {
       "type": "string",
       "title": "Effort — reporter (every scan)",
       "description": "Reasoning effort of the reporter agents, whatever the scan type: type (the scan type's Effort row), inherit (the session's effort), low, medium, high, xhigh or max.",
-      "options": ["type", "inherit", "low", "medium", "high", "xhigh", "max"],
+      "options": [
+        "type",
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
       "default": "type"
     }
   }

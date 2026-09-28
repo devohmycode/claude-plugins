@@ -141,6 +141,13 @@ what could not be verified. Otherwise suggest `/scanner:remediate <RUN> <selecti
 Recall any `reportInstructions` still to do (registering the report, committing it) —
 **without doing them**. Never push and never open a pull request: only offer to.
 
+**Handing over to the tracker.** When the `tracker` plugin is installed (its commands
+`/tracker:open`, `/tracker:plan` are available), offer the next steps instead of fixing here:
+`/tracker:open <RUN>` opens the GitHub issues the findings lack (deduplicated by
+fingerprint), then `/tracker:plan all` cuts the open issues into numbered lots that any
+agent fixes one at a time with `/tracker:lot next`. The scanner never writes to GitHub
+itself: only offer.
+
 ## Not a git repository yet
 
 Whenever a `scanner.mjs` command exits with code 3 and prints a `REPO=` line, this section
