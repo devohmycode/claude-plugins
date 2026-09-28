@@ -8,7 +8,7 @@
 //
 // Pure helpers except the lock, which touches one file in git's common directory.
 
-import { closeSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, linkSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { git } from './lib.mjs'
 
@@ -279,9 +279,11 @@ export function isStale(lock, hours, now = Date.now()) {
 
 /**
  * One attempt, no waiting: `{ ok, lock, renewed?, taken? }`. The same agent on the same
- * lot renews; a stale lock is set aside by an atomic rename (of two agents that see it,
- * one wins), then the new one is created with `wx` (of two agents that arrive together,
- * one wins).
+ * lot renews; a stale lock is set aside by an atomic rename, then the new one is created
+ * with `wx` (of two agents that arrive together, one wins). The file set aside is read
+ * back: when it is no longer the stale lock both agents saw — the other agent took it in
+ * between and this rename moved its fresh lock — it is put back, never overwriting, and
+ * the lock is busy.
  */
 export function tryLock(file, { lot, agent, plan, branch = null, staleHours = 4 }, now = new Date()) {
   const current = readLock(file)
@@ -297,6 +299,16 @@ export function tryLock(file, { lot, agent, plan, branch = null, staleHours = 4 
     const aside = `${file}.stale-${process.pid}`
     try {
       renameSync(file, aside)
+      const moved = readLock(aside)
+      if (!sameLock(moved, current)) {
+        try {
+          linkSync(aside, file)
+        } catch (e) {
+          if (e.code !== 'EEXIST') throw e
+        }
+        unlinkSync(aside)
+        return { ok: false, lock: readLock(file) ?? moved }
+      }
       unlinkSync(aside)
       taken = current
     } catch (e) {
@@ -315,11 +327,19 @@ export function tryLock(file, { lot, agent, plan, branch = null, staleHours = 4 
   return { ok: true, lock, taken }
 }
 
-/** Releases the lock when it holds `lot` (any lot with `force`); true when removed. */
-export function releaseLock(file, lot = null, { force = false } = {}) {
+const sameLock = (a, b) =>
+  a != null && b != null && a.lot === b.lot && a.agent === b.agent && a.since === b.since && a.renewed === b.renewed
+
+/**
+ * Releases the lock when it holds `lot` — and `agent`, when given; any lock with `force`.
+ * Without `force`, a lot is required: releasing whatever is held is what `force` is for.
+ * True when removed.
+ */
+export function releaseLock(file, lot = null, { force = false, agent = null } = {}) {
   const current = readLock(file)
   if (!current) return false
-  if (!force && lot != null && current.lot !== String(lot)) return false
+  if (!force && (lot == null || current.lot !== String(lot))) return false
+  if (!force && agent && current.agent !== agent) return false
   try {
     unlinkSync(file)
     return true

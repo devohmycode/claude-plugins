@@ -957,6 +957,10 @@ function batchStart() {
   const dir = runDir(run)
   const { plan, batch, file } = batchOf(dir, id)
   if (existsSync(file)) fail(t('batchStarted', { id, run }))
+  // The guard is checked before anything is written: armed by another run, it would fail
+  // once the branch exists, the checkout has moved and the record says « started ».
+  const armed = readState(root)
+  if (armed && !(armed.run === run && armed.mode === 'batch')) fail(t('guardBusy', { mode: armed.mode, run: armed.run }))
   const scope = fixerScope(option('fixer', plan.fixer ?? defaultFixer()))
   const day = `${dateTokens().YYYY}${dateTokens().MM}${dateTokens().DD}`
   const stem = plan.lot
@@ -1422,7 +1426,7 @@ function lotRelease() {
   const [id] = positional(1)
   const file = lockFile(root)
   const current = readLock(file)
-  if (releaseLock(file, id ?? null, { force: flag('force') })) return console.log(t('lockReleased', { holder: describeLock(current) }))
+  if (releaseLock(file, id ?? null, { force: flag('force'), agent: option('agent', null) })) return console.log(t('lockReleased', { holder: describeLock(current) }))
   if (!current) return console.log(t('lockFree'))
   fail(t('lockNotReleased', { holder: describeLock(current) }))
 }
