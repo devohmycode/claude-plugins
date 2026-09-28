@@ -43,7 +43,7 @@ d'acceptation et n'est validé que s'il réussit.
   codes de sortie, messages i18n, et le verbe `status`. Refs: SPECS § 5.
 - [x] **S1-T6** Commandes `/docflow:status` et `/docflow:language` ;
   `locales/en.json` et ses trois traductions. Refs: PRD § 6.7.
-- [ ] **S1-T7** Harnais de test `tests/docflow/` avec dépôts temporaires et
+- [x] **S1-T7** Harnais de test `tests/docflow/` avec dépôts temporaires et
   exécuteurs `git`/`gh` factices. Refs: ARCHITECTURE § 11.
 
 - [ ] **S1 acceptance** — Après installation locale du marketplace,
