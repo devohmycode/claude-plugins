@@ -1,6 +1,6 @@
 ---
 description: Fix open issues in batches — grouped by area of the code, one branch and one worktree per batch, one fixer per issue or per batch and one commit per issue, the project's checks, then a draft pull request once you have seen the branch
-argument-hint: '<triage:<run> | 12 15 | priority:P1 | axis:security | label:<name> | all> [--per-batch 5] [--group area|axis|none] [--max 30] [--fixer issue|batch] [--model …] [--effort …]'
+argument-hint: '<triage:<run> | 12 15 | priority:P1 | axis:security | label:<name> | all> [--per-batch 5] [--group area|axis|none] [--max 30] [--fixer issue|batch|session] [--in-place|--worktree] [--model …] [--effort …]'
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
@@ -24,18 +24,27 @@ costs a whole agent for nothing.
    it lists are not in the plan — say so, with their numbers.
 3. Show the batches (id, area, issues with priority and location). **Ask** with
    `AskUserQuestion` which batches to fix now — one, several, or none — and whether the base
-   `BASE=` is right. Say the cost: relay the `Cost:` line — `--fixer batch` (or
-   `batch.fixer`) gives one fixer per batch instead of one per issue: the batch's code is
-   read once.
+   `BASE=` is right. Say the cost: relay the `Cost:` line — `--fixer batch` gives one fixer
+   per batch instead of one per issue (the batch's code is read once); `--fixer session`
+   launches no agent at all: this session fixes the issues itself. The default comes from
+   `batch.fixer`, else the **Fixer** row of `/config`.
 4. For each chosen batch, **one batch at a time** (the guard protects one at a time):
    1. `TRACKER batch start <RUN> <B…> [--fixer issue|batch] [--model …] [--effort …]` —
       creates the branch from the base in a worktree under `.tracker/worktrees/` (the user's
-      working tree does not move), runs the project's setup commands there, and arms the
-      guard: denied paths and commands, no commit on a protected branch, no push, no write to
-      GitHub. Note `DIR=`, `BRANCH=`, `WORKTREE=`, `ISSUES=`, `FIXER_SCOPE=`, `LANG=`,
-      `FIXER=`, `FIXER_MODEL=`. A failed setup command is shown: say it, the fixers may still
+      working tree does not move) and runs the project's setup commands there — or, with
+      `IN_PLACE=yes` (`--in-place`, `batch.worktree: false`, or the **Batch worktree** row of
+      `/config` at `off`), creates the branch in the user's checkout, which must have no
+      uncommitted change to tracked files, with no worktree and no setup. It arms the guard:
+      denied paths and commands, no commit on a protected branch, no push, no write to
+      GitHub. Note `DIR=`, `BRANCH=`, `WORKTREE=`, `IN_PLACE=`, `ISSUES=`, `FIXER_SCOPE=`,
+      `LANG=`, and `FIXER=` / `FIXER_MODEL=` or `FIXER_RULES=`. A failed setup command is shown: say it, the fixers may still
       work without it.
-   2. `FIXER_SCOPE=issue`: for each number of `ISSUES=`, **one after the other** — they commit
+   2. `FIXER_SCOPE=session`: **no agent**. Read `FIXER_RULES=` (the fixer's instructions)
+      once, then fix the issues of `ISSUES=` yourself, in that order, following them exactly:
+      `DIR`, `WORKTREE`, `BRANCH` and `LANG` are the values above — re-measure before
+      fixing, one commit per issue ending with `Closes #n`, never push, and **always** write
+      `DIR/outcome-<n>.json`. Keep what you read to what each issue needs.
+      `FIXER_SCOPE=issue`: for each number of `ISSUES=`, **one after the other** — they commit
       on the same branch — one agent with `ISSUES=<that number>`. `FIXER_SCOPE=batch`: a
       single agent with `ISSUES=<the ISSUES= value>`; it takes them in order, one commit each.
       Either way, an agent of type `FIXER=`, with the Agent tool's `model` set to
@@ -68,7 +77,8 @@ costs a whole agent for nothing.
    close when the pull request reaches the default branch — not before.
 7. Report in `LANG`: per batch, the branch, the pull request, the issues fixed and not fixed
    (why), the checks, what could not be verified, and the worktree path (to remove once
-   merged: `git worktree remove <path>`). **Never merge.**
+   merged: `git worktree remove <path>`; nothing to remove with `IN_PLACE=yes` — `batch
+   finish` has put the checkout back on the branch it came from). **Never merge.**
 
 ## Not a git repository yet
 

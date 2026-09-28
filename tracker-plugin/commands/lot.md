@@ -1,6 +1,6 @@
 ---
 description: Fix one lot of the committed plan — the lock shared by every agent first (one lot at a time), then a branch and a worktree, the fixers, the project's checks and a draft pull request; the lot is marked done and the lock released
-argument-hint: '<id | next> [--wait] [--fixer issue|batch] [--model …] [--effort …] | status | lock | release [<id>] | sync'
+argument-hint: '<id | next> [--wait] [--fixer issue|batch|session] [--in-place|--worktree] [--model …] [--effort …] | status | lock | release [<id>] | sync'
 allowed-tools: Bash(node:*), Bash(git:*), Read, Agent, AskUserQuestion
 ---
 
@@ -25,7 +25,7 @@ comes from `/tracker:plan`; `--plan <file>` names one, else the newest of `plan.
 1. Without arguments: run `TRACKER lot status`, show it, and ask which lot (`next` is usual).
    Stop.
 2. **The lock, before anything else**: `TRACKER lot start <id|next> --agent claude-code
-   [--wait] [--fixer issue|batch]`.
+   [--wait] [--fixer issue|batch|session]`.
    - Exit `75` (`LOCK=busy`): another agent is fixing another lot. Say who, and **change
      nothing**. With `--wait`, the command already waited: run the **same command** again
      until it exits `0`, or stop if the user prefers. Never release someone else's lock.
@@ -36,9 +36,10 @@ comes from `/tracker:plan`; `--plan <file>` names one, else the newest of `plan.
      `AGENTS=`, and relay any warning (the lot waits for a deployment, or is not a diff of
      the repository — then **ask** before going on: such a lot is usually applied by hand,
      then marked with `TRACKER lot mark`).
-3. Follow `/tracker:batch` from its step 4 on, with `<RUN>` and the batch `B1`: `batch start`
-   (branch `fix/lot-<id>-…` in a worktree, guard armed), the fixers one after the other, `batch
-   checks`, `guard off` — always —, `batch status`.
+3. Follow `/tracker:batch` from its step 4 on, with `<RUN>` and the batch `B1`: `batch start
+   [--in-place|--worktree]` (branch `fix/lot-<id>-…`, in a worktree or in the checkout, guard
+   armed), the fixers one after the other — or, with `FIXER_SCOPE=session`, this session
+   fixing the issues itself —, `batch checks`, `guard off` — always —, `batch status`.
 4. **The pull request**: show the branch and **ask**, as `/tracker:batch` does: push and open a
    draft pull request, push only, or leave it local. With the pull request, `batch finish`
    marks the lot done in the plan (JSON and HTML regenerated) and **releases the lock**

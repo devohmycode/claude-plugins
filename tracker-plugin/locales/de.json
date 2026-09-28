@@ -2,7 +2,7 @@
   "action_close": "schließen ({reason})",
   "action_comment": "kommentieren",
   "action_relabel": "Priorität {from} → {to}",
-  "badFixerScope": "Unbekannter Fixer-Umfang: {value} (issue oder batch).",
+  "badFixerScope": "Unbekannter Fixer-Umfang: {value} (issue, batch oder session).",
   "badLink": "--link erwartet ref=Nummer, nicht „{pair}“.",
   "badSelector": "Unlesbare Auswahl: {detail}. Token: 12, #12, label:<Name>, priority:P1, severity:high, axis:security, triage:<run>, all.",
   "badSeverity": "Unbekannter Schweregrad „{value}“ ({list}).",
@@ -248,5 +248,9 @@
   "instr_4": "**Vor dem Beheben neu messen**: jedes Issue nennt seinen Bericht, seinen Lauf und seinen Schlüssel — den Bericht lesen und den Fehler am letzten Commit prüfen. `codeFix: false`: eine Einstellung oder ein Datenbankzustand, kein Diff; `awaitDeploy: true`: erst nach dem genannten Deployment; `bag: true`: das Issue zuerst aufteilen; die Lose unter `conflicts` nennen dieselben Dateien.",
   "instr_5": "**Ende eines Loses**: `{cli} lot mark <id> --pr <n> [--state draft|merged]` aktualisiert das JSON **und** das HTML **und gibt die Sperre frei** (`/tracker:lot` tut das beim Öffnen des Pull Requests). Ein aufgegebenes Los: `{cli} lot release <id>`.",
   "instr_6": "**Der Plan wird auf `{base}` committet, nie auf dem Branch des Loses** — jeder Fix-Branch käme beim Mergen mit dem nächsten in Konflikt: `{cli} lot commit`. `{cli} lot sync --apply` vermerkt die gemergten Pull Requests.",
-  "instrLock": "⚠️ Die Sperre liegt im gemeinsamen git-Verzeichnis (`git rev-parse --git-common-dir`): von allen Worktrees des Klons geteilt, nie committet, atomar gesetzt. `--wait` gibt nach einigen Minuten auf, unter der 10-Minuten-Grenze der Shell-Werkzeuge der Agenten. Eine Sperre, die einige Stunden nicht erneuert wird, läuft ab und ein anderer Agent darf sie übernehmen: ein Agent, der mitten im Los ausfällt, blockiert die anderen nicht."
+  "instrLock": "⚠️ Die Sperre liegt im gemeinsamen git-Verzeichnis (`git rev-parse --git-common-dir`): von allen Worktrees des Klons geteilt, nie committet, atomar gesetzt. `--wait` gibt nach einigen Minuten auf, unter der 10-Minuten-Grenze der Shell-Werkzeuge der Agenten. Eine Sperre, die einige Stunden nicht erneuert wird, läuft ab und ein anderer Agent darf sie übernehmen: ein Agent, der mitten im Los ausfällt, blockiert die anderen nicht.",
+  "inPlaceDirty": "Das Los arbeitet in deinem Checkout (batch.worktree auf false), und verfolgte Dateien haben nicht committete Änderungen:\n{files}\nZuerst committen oder stashen, oder mit --worktree erneut starten.",
+  "switchedBack": "Checkout zurück auf {branch}.",
+  "switchBackFailed": "Konnte nicht zu {branch} zurückkehren: {error}",
+  "fixerScope_session": "keiner: diese Sitzung behebt die Issues selbst"
 }

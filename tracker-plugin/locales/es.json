@@ -2,7 +2,7 @@
   "action_close": "cerrar ({reason})",
   "action_comment": "comentar",
   "action_relabel": "prioridad {from} → {to}",
-  "badFixerScope": "Alcance del corrector desconocido: {value} (issue o batch).",
+  "badFixerScope": "Alcance de corrector desconocido: {value} (issue, batch o session).",
   "badLink": "--link espera ref=número, no «{pair}».",
   "badSelector": "Selección ilegible: {detail}. Fichas: 12, #12, label:<nombre>, priority:P1, severity:high, axis:security, triage:<run>, all.",
   "badSeverity": "Severidad desconocida «{value}» ({list}).",
@@ -248,5 +248,9 @@
   "instr_4": "**Vuelve a medir antes de corregir**: cada issue cita su informe, su run y su clave — relee el informe y comprueba el defecto en el último commit. `codeFix: false`: un ajuste o un estado de la base de datos, no un diff; `awaitDeploy: true`: solo después del despliegue que indica; `bag: true`: divide primero la issue; los lotes de `conflicts` citan los mismos archivos.",
   "instr_5": "**Fin de un lote**: `{cli} lot mark <id> --pr <n> [--state draft|merged]` actualiza el JSON **y** el HTML **y libera el bloqueo** (`/tracker:lot` lo hace al abrir la pull request). Lote abandonado: `{cli} lot release <id>`.",
   "instr_6": "**El plan se confirma en `{base}`, nunca en la rama del lote** — cada rama de corrección entraría en conflicto con la siguiente al fusionarse: `{cli} lot commit`. `{cli} lot sync --apply` registra las pull requests fusionadas.",
-  "instrLock": "⚠️ El bloqueo vive en el directorio común de git (`git rev-parse --git-common-dir`): compartido por todos los worktrees del clon, nunca confirmado, tomado de forma atómica. `--wait` se rinde al cabo de unos minutos, por debajo del límite de 10 minutos de las herramientas shell de los agentes. Un bloqueo sin renovar durante unas horas caduca y otro agente puede tomarlo: un agente caído a mitad de un lote no bloquea a los demás."
+  "instrLock": "⚠️ El bloqueo vive en el directorio común de git (`git rev-parse --git-common-dir`): compartido por todos los worktrees del clon, nunca confirmado, tomado de forma atómica. `--wait` se rinde al cabo de unos minutos, por debajo del límite de 10 minutos de las herramientas shell de los agentes. Un bloqueo sin renovar durante unas horas caduca y otro agente puede tomarlo: un agente caído a mitad de un lote no bloquea a los demás.",
+  "inPlaceDirty": "El lote trabaja en tu checkout (batch.worktree en false) y hay archivos seguidos con cambios sin confirmar:\n{files}\nConfírmalos o guárdalos antes, o vuelve a lanzar con --worktree.",
+  "switchedBack": "Checkout de vuelta en {branch}.",
+  "switchBackFailed": "No se pudo volver a {branch}: {error}",
+  "fixerScope_session": "ninguno: esta sesión corrige las issues ella misma"
 }

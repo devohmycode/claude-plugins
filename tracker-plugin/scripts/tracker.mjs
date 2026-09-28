@@ -45,7 +45,7 @@ import {
   normalizeFindings,
   validateFindings,
 } from './findings.mjs'
-import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
+import { LANGUAGES, SUPPORTED, resolveLanguage, userOption } from './i18n.mjs'
 import {
   BUSY_EXIT,
   LEGACY_SCHEMA,
@@ -71,6 +71,7 @@ import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState }
 import {
   AGENT_SETTINGS,
   CONFIG_FILE,
+  batchWorktree,
   PLUGIN_ROOT,
   ROLES,
   STATE_DIR,
@@ -878,7 +879,7 @@ function batchPlan() {
     perBatch: Number(option('per-batch', config.batch.perBatch)),
     max,
   })
-  const fixer = fixerScope(option('fixer', config.batch.fixer))
+  const fixer = fixerScope(option('fixer', defaultFixer()))
   const run = `batch-${timestamp()}`
   const dir = path.join(RUNS, run)
   for (const issue of issues)
@@ -904,18 +905,29 @@ function batchPlan() {
     for (const i of b.issues) console.log(`    #${i.number} ${i.priority ?? '--'} ${i.title.slice(0, 80)}${i.location ? ` — ${i.location}` : ''}`)
   }
   console.log(`BATCHES=${batches.map((b) => b.id).join(',')}`)
-  const agents = fixer === 'batch' ? batches.length : issues.length
+  const agents = fixer === 'session' ? 0 : fixer === 'batch' ? batches.length : issues.length
   console.log(`FIXER_SCOPE=${fixer}`)
   console.log(`AGENTS=${agents}`)
   console.log(t('batchCost', { agents, n: issues.length, scope: t(`fixerScope_${fixer}`) }))
 }
 
-/** `issue` (one fixer per issue) or `batch` (one fixer per batch). */
+/**
+ * `issue` (one fixer agent per issue), `batch` (one per batch) or `session` (no agent:
+ * the session that runs the command fixes the issues itself — no fresh context to pay
+ * for each time, at the price of the code it reads staying in the session).
+ */
+const FIXER_SCOPES = ['issue', 'batch', 'session']
 function fixerScope(value) {
   const v = String(value ?? 'issue').trim().toLowerCase()
-  if (v !== 'issue' && v !== 'batch') fail(t('badFixerScope', { value }), 2)
+  if (!FIXER_SCOPES.includes(v)) fail(t('badFixerScope', { value }), 2)
   return v
 }
+
+/** Whether a batch gets its own worktree: `--in-place`, `--worktree`, `batch.worktree`. */
+const useWorktree = () => (flag('in-place') ? false : flag('worktree') ? true : batchWorktree(config))
+
+/** `batch.fixer` in the project config, else the **Fixer** row of /config, else issue. */
+const defaultFixer = () => config.batch.fixer ?? userOption(PLUGIN_ROOT, 'fixer_scope') ?? 'issue'
 
 function batchOf(dir, id) {
   const plan = readJson(path.join(dir, 'plan.json'))
@@ -945,32 +957,50 @@ function batchStart() {
   const dir = runDir(run)
   const { plan, batch, file } = batchOf(dir, id)
   if (existsSync(file)) fail(t('batchStarted', { id, run }))
-  const scope = fixerScope(option('fixer', plan.fixer ?? config.batch.fixer))
+  const scope = fixerScope(option('fixer', plan.fixer ?? defaultFixer()))
   const day = `${dateTokens().YYYY}${dateTokens().MM}${dateTokens().DD}`
   const stem = plan.lot
     ? `${config.batch.branchPrefix}lot-${slug(plan.lot.id)}-${slug(batch.group)}`
     : `${config.batch.branchPrefix}tracker-${slug(batch.group)}-${day}`
   let branch = stem
   for (let n = 2; branchExists(branch); n++) branch = `${stem}-${n}`
-  const parent = path.join(root, STATE_DIR, 'worktrees')
-  const worktree = path.join(parent, `${run}-${id}`)
-  if (existsSync(worktree)) fail(t('worktreeExists', { worktree: toPosix(worktree) }))
-  if (!existsSync(path.join(parent, '.gitignore'))) {
-    mkdirSync(parent, { recursive: true })
-    writeFileSync(path.join(parent, '.gitignore'), '*\n', 'utf8')
+  const inPlace = !useWorktree()
+  const from = currentBranch()
+  let worktree = root
+  if (inPlace) {
+    // The branch in the user's own checkout: no copy of the repository and no install to
+    // redo — but tracked files must be clean, and the checkout moves to the branch.
+    const dirty = git(['status', '--porcelain', '--untracked-files=no'], root).trim()
+    if (dirty) fail(t('inPlaceDirty', { files: dirty.split('\n').slice(0, 8).join('\n') }), 2)
+    try {
+      execFileSync('git', ['switch', '-c', branch, plan.base], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    } catch (e) {
+      fail(t('worktreeFailed', { error: String(e.stderr || e.message).trim() }))
+    }
+  } else {
+    const parent = path.join(root, STATE_DIR, 'worktrees')
+    worktree = path.join(parent, `${run}-${id}`)
+    if (existsSync(worktree)) fail(t('worktreeExists', { worktree: toPosix(worktree) }))
+    if (!existsSync(path.join(parent, '.gitignore'))) {
+      mkdirSync(parent, { recursive: true })
+      writeFileSync(path.join(parent, '.gitignore'), '*\n', 'utf8')
+    }
+    try {
+      execFileSync('git', ['worktree', 'add', '-b', branch, worktree, plan.base], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (e) {
+      fail(t('worktreeFailed', { error: String(e.stderr || e.message).trim() }))
+    }
   }
-  try {
-    execFileSync('git', ['worktree', 'add', '-b', branch, worktree, plan.base], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-  } catch (e) {
-    fail(t('worktreeFailed', { error: String(e.stderr || e.message).trim() }))
-  }
-  const setup = (config.batch.setup ?? []).map((cmd) => runIn(worktree, cmd, config.batch.checkTimeoutMinutes))
+  // The setup prepares a fresh worktree; the user's checkout is prepared already.
+  const setup = inPlace ? [] : (config.batch.setup ?? []).map((cmd) => runIn(worktree, cmd, config.batch.checkTimeoutMinutes))
   const record = {
     id,
+    inPlace,
+    from,
     group: batch.group,
     branch,
     base: plan.base,
@@ -995,10 +1025,13 @@ function batchStart() {
   console.log(`BRANCH=${branch}`)
   console.log(`BASE=${plan.base}`)
   console.log(`WORKTREE=${record.worktree}`)
+  console.log(`IN_PLACE=${inPlace ? 'yes' : 'no'}`)
   console.log(`ISSUES=${record.issues.join(',')}`)
   console.log(`FIXER_SCOPE=${scope}`)
   console.log(`LANG=${i18n.englishName}`)
-  printAgent('fixer', { model: option('model'), effort: option('effort') })
+  // No agent: the session reads the fixer's rules and applies them itself.
+  if (scope === 'session') console.log(`FIXER_RULES=${toPosix(path.join(PLUGIN_ROOT, 'agents', 'fixer.md'))}`)
+  else printAgent('fixer', { model: option('model'), effort: option('effort') })
   console.log(t('batchReady', { id, branch, base: plan.base, n: record.issues.length, scope: t(`fixerScope_${scope}`) }))
 }
 
@@ -1109,6 +1142,16 @@ function batchFinish() {
     writeJson(file, { ...record, pr: url })
     console.log(`PR=${url}`)
     if (plan.lot) finishLot(plan.lot, { url, branch: record.branch })
+  }
+  // In place, the checkout goes back where it was: the next lot starts from there, and the
+  // plan is committed on its base, never on the lot's branch.
+  if (record.inPlace && record.from && record.from !== record.branch) {
+    try {
+      execFileSync('git', ['switch', record.from], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+      console.log(t('switchedBack', { branch: record.from }))
+    } catch (e) {
+      console.log(t('switchBackFailed', { branch: record.from, error: String(e.stderr || e.message).trim() }))
+    }
   }
 }
 
@@ -1414,7 +1457,7 @@ function lotStart() {
   const dir = path.join(RUNS, run)
   for (const issue of open) writeJson(path.join(dir, `issue-${issue.number}.json`), issueRecord(issue, { triage: true }))
   const base = plan.base ?? config.batch.base ?? currentBranch()
-  const fixer = fixerScope(option('fixer', config.batch.fixer))
+  const fixer = fixerScope(option('fixer', defaultFixer()))
   const facets = new Map(lot.issues.map((i) => [i.number, i]))
   writeJson(path.join(dir, 'plan.json'), {
     run,

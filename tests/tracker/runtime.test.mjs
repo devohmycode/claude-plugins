@@ -173,4 +173,29 @@ describe('batch', () => {
     assert.equal(line(dry.stdout, 'TITLE'), 'fix(src): #7')
     assert.match(dry.stdout, /Nothing was pushed/)
   })
+
+  it('in place and without agent: the branch in the checkout, the fixer rules for the session', () => {
+    const run = 'batch-inplace'
+    write(`.tracker/runs/${run}/plan.json`, {
+      run,
+      base: 'dev',
+      batches: [{ id: 'B1', group: 'src', issues: [{ number: 8, title: 'y', priority: 'P2', location: 'src/app.js:1' }] }],
+    })
+    write(`.tracker/runs/${run}/issue-8.json`, { number: 8, title: 'y', body: '', labels: [] })
+    writeFileSync(path.join(repo, 'src/app.js'), 'dirty\n')
+    const refused = tracker('batch', 'start', run, 'B1', '--in-place', '--fixer', 'session')
+    assert.equal(refused.status, 2, 'uncommitted tracked changes stop it')
+    git('checkout', '--', 'src/app.js')
+
+    const start = tracker('batch', 'start', run, 'B1', '--in-place', '--fixer', 'session')
+    assert.equal(start.status, 0, start.stderr)
+    assert.equal(line(start.stdout, 'IN_PLACE'), 'yes')
+    assert.equal(line(start.stdout, 'FIXER_SCOPE'), 'session')
+    assert.match(line(start.stdout, 'FIXER_RULES'), /agents\/fixer\.md$/)
+    assert.equal(line(start.stdout, 'FIXER'), undefined, 'no agent to launch')
+    assert.equal(path.resolve(line(start.stdout, 'WORKTREE')), path.resolve(repo))
+    assert.match(git('rev-parse', '--abbrev-ref', 'HEAD').trim(), /^fix\/tracker-src-\d{8}/)
+    assert.equal(tracker('guard', 'off').status, 0)
+    git('switch', '-q', 'dev')
+  })
 })

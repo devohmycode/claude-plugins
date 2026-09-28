@@ -120,8 +120,14 @@ export const DEFAULT_CONFIG = {
     // area (first two path segments of the location), axis, or none.
     groupBy: 'area',
     // issue: one fixer agent per issue; batch: one fixer for the whole batch, still
-    // one commit per issue — the batch's code is read once.
-    fixer: 'issue',
+    // one commit per issue — the batch's code is read once; session: no agent, the
+    // session running the command fixes the issues itself.
+    // null: the Fixer row of /config, then issue.
+    fixer: null,
+    // false: the batch branch is created in the user's checkout (clean tracked files
+    // required), no worktree and no setup; the checkout goes back after the finish.
+    // null: the Batch worktree row of /config, then true.
+    worktree: null,
     // Run in the batch worktree before the fixers (e.g. a frozen install).
     setup: [],
     // Run in the batch worktree once the fixers are done.
@@ -218,6 +224,12 @@ export function i18nFor(configOrLanguage) {
       ? configOrLanguage.language
       : configOrLanguage
   return createI18n({ localesDir: LOCALES_DIR, language })
+}
+
+/** Whether a batch gets a worktree: `batch.worktree`, the Batch worktree row of /config, true. */
+export function batchWorktree(config) {
+  if (typeof config.batch.worktree === 'boolean') return config.batch.worktree
+  return String(userOption(PLUGIN_ROOT, 'batch_worktree') ?? 'on').trim().toLowerCase() !== 'off'
 }
 
 /** The /config row of a role's setting: `fixer_model`, `triager_effort`… */
