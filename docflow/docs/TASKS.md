@@ -119,10 +119,11 @@ acceptance test and is validated only when it passes.
 - [x] **S5-T4** `/docflow:issues` command with the repository and GitHub
   checks. Refs: PRD § 6.7 (M-2).
 
-- [ ] **S5 acceptance** — With `issues: mirror`, `/docflow:issues push` twice
+- [x] **S5 acceptance** — With `issues: mirror`, `/docflow:issues push` twice
   creates each issue once; `/tracker:open`-style key detection finds them; a
   sprint's draft pull request closes its tasks' issues when merged by hand; an
   issue closed by hand is reported by `/docflow:issues pull`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample project with issues mirror, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:issues push created five issues (#1 to #5: two sprints, their acceptance tests labelled acceptance) and wrote their numbers in TASKS.md and TASKS-FR.md; a second push created nothing (UNCHANGED=5); the tracker plugin keysInBody read id:docflow-<id> on each of them; the S1 run opened a draft pull request listing Closes #1, #2 and #3 and not #4; after S1 was merged by hand and its issues closed, #4 closed by hand was the only one /docflow:issues pull reported, and the command asked before applying.*
 
 ## S6 — Documentation and dogfooding
 
