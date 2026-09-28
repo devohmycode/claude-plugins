@@ -38,7 +38,7 @@ acceptance test and is validated only when it passes.
   Refs: SPECS § 4, ARCHITECTURE § 8.
 - [x] **S1-T5** `scripts/docflow.mjs` entry with `KEY=value` output, exit codes,
   i18n messages, and the `status` verb. Refs: SPECS § 5.
-- [ ] **S1-T6** `/docflow:status` and `/docflow:language` commands;
+- [x] **S1-T6** `/docflow:status` and `/docflow:language` commands;
   `locales/en.json` and its three translations. Refs: PRD § 6.7.
 - [ ] **S1-T7** Test harness `tests/docflow/` with temporary repositories and
   fake `git`/`gh` runners. Refs: ARCHITECTURE § 11.
