@@ -2,7 +2,7 @@
   "action_close": "fermer ({reason})",
   "action_comment": "commenter",
   "action_relabel": "priorité {from} → {to}",
-  "badFixerScope": "Portée du correcteur inconnue : {value} (issue ou batch).",
+  "badFixerScope": "Portée de correcteur inconnue : {value} (issue, batch ou session).",
   "badLink": "--link attend réf=numéro, pas « {pair} ».",
   "badSelector": "Sélection illisible : {detail}. Jetons : 12, #12, label:<nom>, priority:P1, severity:high, axis:security, triage:<run>, all.",
   "badSeverity": "Sévérité inconnue « {value} » ({list}).",
@@ -248,5 +248,9 @@
   "instr_4": "**Remesurer avant de corriger** : chaque issue cite son rapport, son run et sa clé — relire le rapport et vérifier le défaut au dernier commit. `codeFix: false` : un réglage ou un état de la base, pas un diff ; `awaitDeploy: true` : seulement après le déploiement qu’il nomme ; `bag: true` : décomposer l’issue d’abord ; les lots listés dans `conflicts` citent les mêmes fichiers.",
   "instr_5": "**Fin de lot** : `{cli} lot mark <id> --pr <n> [--state draft|merged]` met à jour le JSON **et** le HTML **et rend le verrou** (`/tracker:lot` le fait en ouvrant la pull request). Lot abandonné : `{cli} lot release <id>`.",
   "instr_6": "**Le plan se commite sur `{base}`, jamais sur la branche du lot** — chaque branche de correctif entrerait en conflit avec la suivante à la fusion : `{cli} lot commit`. `{cli} lot sync --apply` enregistre les pull requests fusionnées.",
-  "instrLock": "⚠️ Le verrou vit dans le répertoire git commun (`git rev-parse --git-common-dir`) : partagé par toutes les worktrees du clone, jamais commité, pris de façon atomique. `--wait` abandonne au bout de quelques minutes, sous la limite de 10 minutes des outils shell des agents. Un verrou non renouvelé pendant quelques heures se périme et un autre agent peut le reprendre : un agent tombé en cours de lot ne bloque pas les autres."
+  "instrLock": "⚠️ Le verrou vit dans le répertoire git commun (`git rev-parse --git-common-dir`) : partagé par toutes les worktrees du clone, jamais commité, pris de façon atomique. `--wait` abandonne au bout de quelques minutes, sous la limite de 10 minutes des outils shell des agents. Un verrou non renouvelé pendant quelques heures se périme et un autre agent peut le reprendre : un agent tombé en cours de lot ne bloque pas les autres.",
+  "inPlaceDirty": "Le lot travaille dans ton checkout (batch.worktree à false), et des fichiers suivis ont des modifications non commitées :\n{files}\nLes commiter ou les remiser d’abord, ou relancer avec --worktree.",
+  "switchedBack": "Checkout revenu sur {branch}.",
+  "switchBackFailed": "Impossible de revenir sur {branch} : {error}",
+  "fixerScope_session": "aucun : cette session corrige les issues elle-même"
 }

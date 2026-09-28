@@ -13,6 +13,7 @@
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { concerns } from './scope.mjs'
 import {
   git,
   i18nFor,
@@ -173,6 +174,8 @@ try {
   const toolInput = input.tool_input ?? {}
 
   if (event === 'pre') {
+    // Another session, or a command aimed at another repository: not this guard's concern.
+    if (state && !concerns(state, input, root)) process.exit(0)
     // The state records the language at arming time: no config read on every call.
     if (state?.lang) t = i18nFor(state.lang).t
     if (state?.mode === 'scan') duringScan(state, root, tool, toolInput)

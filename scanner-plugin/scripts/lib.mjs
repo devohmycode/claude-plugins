@@ -23,6 +23,8 @@ export const FIELDS = {
   report_guidance: 'Report',
   remediation_guidance: 'Remediation',
   exclude_globs: 'Exclusions',
+  // What the scan does not look at, one item per line: stated at the top of the report.
+  not_covered: 'Not covered',
 }
 const REQUIRED_FIELDS = [
   'description',
@@ -95,6 +97,12 @@ export const DEFAULT_CONFIG = {
   branchPrefix: 'fix/',
   batches: 4,
   reportInstructions: '',
+  // The report is rendered by the script from final.json. true: a reporter agent first
+  // writes a short summary (narrative.json) following the profile's report guidance.
+  // null: the scanner's "Report summary" row in /config, then off.
+  reportNarrative: null,
+  // A stylesheet added to the HTML report (relative to the repository), for the project's look.
+  reportCss: null,
   // Opened to the reporter once the scan is finalized, profile exclusions notwithstanding:
   // `read` globs (the reports directory is always readable), `write` globs (e.g. a registry).
   reportAccess: { read: [], write: [] },
@@ -172,6 +180,13 @@ export function reportFormatFor(config) {
   return format
     ? { format, source, value, known: true }
     : { format: DEFAULT_REPORT_FORMAT, source, value, known: false }
+}
+
+/** Whether a reporter agent writes a summary: `reportNarrative`, the /config row, off. */
+export function narrativeFor(config) {
+  if (typeof config.reportNarrative === 'boolean') return config.reportNarrative
+  const row = String(userOption(PLUGIN_ROOT, 'report_narrative') ?? '').trim().toLowerCase()
+  return ['on', 'true', 'yes'].includes(row)
 }
 
 /**
@@ -401,7 +416,8 @@ export function loadProfile(root, config, type) {
     const own = base.sections[h] ?? ''
     const extra = overlay?.sections[h] ?? ''
     if (key === 'exclude_globs') continue
-    const value = extra
+    // The project's list replaces the built-in one: the report states it, it is not guidance.
+    const value = key === 'not_covered' ? (extra || own).trim() : extra
       ? `${own}\n\nPROJECT-SPECIFIC (takes precedence over the generic guidance above):\n${extra}`.trim()
       : own
     if (value) profile[key] = value

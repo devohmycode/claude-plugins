@@ -216,6 +216,21 @@ Agents outside Claude Code need two things, both written by the plugin:
 A plan written by hand in the earlier French format (`decker.lots-issues/1`) is converted
 with `plan import <file> --apply`: done lots keep their pull request.
 
+### Fewer agents, no worktree
+
+Two settings trade isolation for cost, per project (`batch.fixer`, `batch.worktree`) or for
+you in every project (the **Fixer** and **Batch worktree** rows of `/config`):
+
+- **`fixer: "session"`** — no fixer agent: the session running `/tracker:batch` or
+  `/tracker:lot` reads the fixer's rules and fixes the issues itself, one commit each. Each
+  agent starts from nothing and reads the project's instructions, the report and the code
+  again; the session reads them once — the code it reads stays in its context.
+- **`worktree: false`** (or `--in-place`) — the `fix/` branch is created in your checkout
+  instead of a worktree under `.tracker/worktrees/`: no copy of the repository and no setup
+  (`batch.setup`) to rerun. Tracked files must be clean; `batch finish` puts the checkout
+  back on the branch it came from. A worktree remains the choice when you keep working in
+  the checkout while a batch runs.
+
 ## The guard (hooks)
 
 | While…     | Refused                                                                                                  |
@@ -224,7 +239,9 @@ with `plan import <file> --apply`: done lots keep their pull request.
 | a batch    | the paths and commands the project denies, commits on a protected branch, `git push`, any write to GitHub |
 | always     | after a commit: the trailers listed in `commits.forbiddenTrailers` are reported                          |
 
-Writing to GitHub is the script's job, after your agreement, outside an armed guard. The guard
+A guard concerns **the session that armed it** and **its own repository**: another session,
+or a command whose every `cd` / `git -C` leaves the project and the run's worktree, is let
+through. Writing to GitHub is the script's job, after your agreement, outside an armed guard. The guard
 expires by itself after `guard.ttlHours`; `/tracker:guard off` lifts it after an interruption.
 
 ## Files produced
@@ -262,7 +279,9 @@ complete project configuration (French labels).
   `lowercaseFirst`, `maxLength`.
 - `triage` — `max`, `relabel`, `commentOnHolds`, `skipUnchanged` (`true`), `perAgent` (`1`).
 - `batch` — `base`, `prBase`, `branchPrefix`, `perBatch`, `max`, `groupBy`
-  (`area`, `axis`, `none`), `fixer` (`issue`, `batch`), `setup`, `checks`, `checkTimeoutMinutes`, `draft`.
+  (`area`, `axis`, `none`), `fixer` (`issue`, `batch`, `session`; else the **Fixer** row of
+  `/config`), `worktree` (`true`; else the **Batch worktree** row of `/config`), `setup`, `checks`,
+  `checkTimeoutMinutes`, `draft`.
 - `plan` — `dir` (`docs/issues`), `name` (`{YYYY}-{MM}-{DD}-plan`), `max`, `perLot` (a hint to
   the planner), `staleHours` (4), `waitMinutes` (9), `cli` (how the protocol names the
   script), `instructionFiles` (`CLAUDE.md`, `AGENTS.md`), `commitPrefix` (`docs(issues)`).

@@ -90,8 +90,11 @@ Nothing is created without that answer. From the script: `scanner.mjs repo plan`
 5. **`scanner.mjs finalize`** applies the verdicts, downgrades to `info` a finding without a
    reachability path when the type requires one, compares with the last full scan (**new /
    persisting / resolved**), and archives the result.
-6. **`reporter` agent**: the report — a self-contained HTML page or a Markdown file, see
-   [Report format](#report-format) — following the profile's `Report` section.
+6. **The report, rendered by the script** from `final.json` — a self-contained HTML page or a
+   Markdown file, see [Report format](#report-format). No agent writes it: it costs no token
+   and two renders of the same run are identical. With `reportNarrative`, a **`reporter`**
+   agent first writes a short summary (`narrative.json`) following the profile's `Report`
+   section, which the script inserts.
 7. Guard lifted.
 8. Depending on the [mode](#scan-modes): the findings to fix are chosen, then fixed on a new
    branch.
@@ -262,6 +265,22 @@ shared engine (`shared/i18n/`), not to be edited here.
 
 ## Report format
 
+The script renders the report from the run's `final.json` (`scanner.mjs report <run>
+[--format html|md] [--out <file>]`, also to render an old run again). In order: what the scan
+does not cover, the optional summary, counts by severity, the comparison with the previous
+scan, the three most severe findings, then every finding — snippet, reachability, evidence,
+triage reason; `plausible` ones drawn apart —, the resolved findings and the refuted ones with
+the never-report entry that ruled them out.
+
+- **What the scan does not cover** comes from the built-in text of the type, in the plugin's
+  language, or from a `## Not covered` section in the project overlay (one item per line),
+  which replaces it.
+- **Grouping**: by severity; by rule for `performance`, `accessibility` and `dead-code`;
+  `types.<type>.reportGroupBy` (`severity`, `rule`, `file`) sets it per type.
+- **The project's look**: `reportCss`, a stylesheet added to the HTML report.
+- **A summary written by an agent**: `reportNarrative: true` — a few sentences following the
+  profile's `Report` section; the rest of the report is still the script's.
+
 `html` by default: one self-contained page (inline CSS, light and dark mode). `md` gives a
 GitHub-flavored Markdown file instead, readable raw, rendered on GitHub, and easy to diff when
 reports are committed. First match wins:
@@ -286,11 +305,12 @@ See `examples/config.json`. Keys:
 - `model`, `effort` — for every type; `roles.triager` / `roles.reporter`: `model`,
   `effort` for that role in every type: see [Agents](#agents-model-and-effort);
 - `reports`, `reportName` (`{type}`, `{YYYYMMDD}`, `{DDMMYYYY}`, `{ext}`), `history`,
-  `reportInstructions` (passed to the reporter);
+  `reportInstructions` (recalled at the end of a scan, and passed to the reporter);
+- `reportNarrative` (`false`; else the **Report summary** row of `/config`) — a reporter agent writes a short summary the script inserts;
+  `reportCss` — a stylesheet added to the HTML report; `types.<type>.reportGroupBy`:
+  see [Report format](#report-format);
 - `reportAccess` — `read` / `write` globs opened to the reporter once the scan is finalized,
-  even if the profile excludes them. The `reports` directory is always readable then, so the
-  reporter can follow the existing reports' layout; add e.g. `"read": ["docs/**"]` for a
-  style guide, `"write": ["docs/index.html"]` to let it register the report;
+  even if the profile excludes them;
 - `investigators` (`["claude"]`), `external.<engine>.model` / `.effort`,
   `externalTimeoutMinutes` (30): see [External investigators](#external-investigators-agent-bridges);
 - `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;

@@ -2,7 +2,7 @@
   "action_close": "close ({reason})",
   "action_comment": "comment",
   "action_relabel": "priority {from} → {to}",
-  "badFixerScope": "Unknown fixer scope: {value} (issue or batch).",
+  "badFixerScope": "Unknown fixer scope: {value} (issue, batch or session).",
   "badLink": "--link expects ref=number, not \"{pair}\".",
   "badSelector": "Unreadable selection: {detail}. Tokens: 12, #12, label:<name>, priority:P1, severity:high, axis:security, triage:<run>, all.",
   "badSeverity": "Unknown severity \"{value}\" ({list}).",
@@ -248,5 +248,9 @@
   "instr_4": "**Re-measure before fixing**: each issue names its report, its run and its key — read the report and check the defect at the latest commit. `codeFix: false` means a setting or a database state, not a diff; `awaitDeploy: true`, only after the deployment it names; `bag: true`, split the issue first; the lots listed in `conflicts` cite the same files.",
   "instr_5": "**End of a lot**: `{cli} lot mark <id> --pr <n> [--state draft|merged]` updates the JSON **and** the HTML **and releases the lock** (`/tracker:lot` does it when it opens the pull request). A lot given up: `{cli} lot release <id>`.",
   "instr_6": "**The plan is committed on `{base}`, never on the lot’s branch** — each fix branch would conflict with the next one when merged: `{cli} lot commit`. `{cli} lot sync --apply` records the merged pull requests.",
-  "instrLock": "⚠️ The lock lives in git’s common directory (`git rev-parse --git-common-dir`): shared by every worktree of the clone, never committed, taken atomically. `--wait` gives up after a few minutes, below the 10-minute limit of the agents’ shell tools. A lock not renewed for a few hours goes stale and another agent may take it: an agent that died in a lot does not block the others."
+  "instrLock": "⚠️ The lock lives in git’s common directory (`git rev-parse --git-common-dir`): shared by every worktree of the clone, never committed, taken atomically. `--wait` gives up after a few minutes, below the 10-minute limit of the agents’ shell tools. A lock not renewed for a few hours goes stale and another agent may take it: an agent that died in a lot does not block the others.",
+  "inPlaceDirty": "The batch works in your checkout (batch.worktree false), and tracked files have uncommitted changes:\n{files}\nCommit or stash them first, or run with --worktree.",
+  "switchedBack": "Checkout back on {branch}.",
+  "switchBackFailed": "Could not go back to {branch}: {error}",
+  "fixerScope_session": "none: this session fixes the issues itself"
 }

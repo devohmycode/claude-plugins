@@ -1,6 +1,6 @@
 {
   "name": "scanner",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation — with built-in profiles and optional per-project overlays.",
   "author": {
     "name": "DevOhMyCode",
@@ -52,6 +52,16 @@
         "md"
       ],
       "default": "html"
+    },
+    "report_narrative": {
+      "type": "string",
+      "title": "Report summary",
+      "description": "off: the script renders the report from final.json, no agent involved. on: a reporter agent first writes a short summary, which the script inserts. The project's reportNarrative wins.",
+      "options": [
+        "off",
+        "on"
+      ],
+      "default": "off"
     },
     "accessibility_model": {
       "type": "string",
