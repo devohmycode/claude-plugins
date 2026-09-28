@@ -96,7 +96,7 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S4 — Moteur de mise en œuvre
 
-- [ ] **S4-T1** `lib/tasks.mjs` : analyseur, unité `next`, coche dans les
+- [x] **S4-T1** `lib/tasks.mjs` : analyseur, unité `next`, coche dans les
   jumeaux, résultats, numéros d'issue. Refs: SPECS § 6. *Done when* les tests
   golden-file passent.
 - [ ] **S4-T2** `lib/run.mjs` : branche de base, nommage de branche, worktree

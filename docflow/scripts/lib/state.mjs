@@ -30,7 +30,8 @@ export class StateError extends Error {
   }
 }
 
-export const emptyState = () => ({ schema: SCHEMA, docs: {}, translations: {}, lock: null, run: null, guard: null })
+/** `pending`: finished runs whose draft pull request is not merged yet (`unit`, `branch`, `pr`). */
+export const emptyState = () => ({ schema: SCHEMA, docs: {}, translations: {}, lock: null, run: null, guard: null, pending: [] })
 
 /** Creates `.docflow/` and its `.gitignore` (state ignored, config kept). */
 export function ensureDocflowDir(root) {
