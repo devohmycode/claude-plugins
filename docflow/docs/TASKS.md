@@ -96,7 +96,7 @@ acceptance test and is validated only when it passes.
   Refs: SPECS § 8, ARCHITECTURE § 5.3.
 - [x] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
   and `--resume`. Refs: SPECS § 5.
-- [ ] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
+- [x] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
   implementers; `implementer` and `acceptance` agents. Refs: PRD § 6.4.
 - [x] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
   `SubagentStop`) scoped with `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
