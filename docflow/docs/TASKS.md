@@ -139,3 +139,4 @@ acceptance test and is validated only when it passes.
 - [ ] **S6 acceptance** — Every PRD § 11 acceptance criterion passes on a fresh
   install from the marketplace; the Taskbar Hub sprint produced a draft pull
   request with ticked tasks and no manual edit of `TASKS.md`.
+  *Result (2026-09-28): failed — not every part holds yet. Passed: the README, the 0.1.0 entry, the budgets of SPECS § 10 (measured and tested), and on Taskbar Hub an adopted chain and a draft pull request (devohmycode/Taskbar-Hub#2) with its task ticked by the script and no manual edit of TASKS.md. Not met: a fresh install from the marketplace, which serves main and cannot hold docflow before these pull requests are merged; one task was run on Taskbar Hub instead of a sprint, by the user's choice; the token check of PRD § 11 criterion 7 is only partly met (see SPECS § 10).*
