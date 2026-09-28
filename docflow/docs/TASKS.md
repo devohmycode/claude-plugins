@@ -127,7 +127,7 @@ acceptance test and is validated only when it passes.
 
 ## S6 — Documentation and dogfooding
 
-- [ ] **S6-T1** `docflow/README.md` (and `README-FR.md`): install, options,
+- [x] **S6-T1** `docflow/README.md` (and `README-FR.md`): install, options,
   commands, the flow, token tips.
 - [ ] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
   `marketplace.json`, root README entry.
