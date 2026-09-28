@@ -64,10 +64,11 @@ acceptance test and is validated only when it passes.
   summary by script, S1 of `TASKS.md` pre-ticked. Refs: PRD § 6.1 (D-5).
 - [x] **S2-T7** `writer` agent. Refs: ARCHITECTURE § 6.
 
-- [ ] **S2 acceptance** — On an empty repository, `/docflow:run` repeated with
+- [x] **S2 acceptance** — On an empty repository, `/docflow:run` repeated with
   approvals produces the four documents and the `CLAUDE.md` block; every
   document links to its neighbours; `/docflow:check` reports nothing; editing
   the approved PRD marks the others stale in `/docflow:status`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on an empty repository: five /docflow:run with approvals produced PRD, ARCHITECTURE, SPECS, TASKS (17 entries) and a 13-line CLAUDE.md block; each document links to the three others; docflow check reported ISSUES=0; after editing the approved PRD, status showed PRD draft and ARCHITECTURE, SPECS, TASKS stale.*
 
 ## S3 — Translations
 

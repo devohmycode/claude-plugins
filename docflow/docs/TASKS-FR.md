@@ -69,11 +69,12 @@ d'acceptation et n'est validé que s'il réussit.
   Refs: PRD § 6.1 (D-5).
 - [x] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.
 
-- [ ] **S2 acceptance** — Sur un dépôt vide, `/docflow:run` répété avec les
+- [x] **S2 acceptance** — Sur un dépôt vide, `/docflow:run` répété avec les
   approbations produit les quatre documents et le bloc `CLAUDE.md` ; chaque
   document renvoie vers ses voisins ; `/docflow:check` ne signale rien ;
   modifier le PRD approuvé marque les autres comme obsolètes dans
   `/docflow:status`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on an empty repository: five /docflow:run with approvals produced PRD, ARCHITECTURE, SPECS, TASKS (17 entries) and a 13-line CLAUDE.md block; each document links to the three others; docflow check reported ISSUES=0; after editing the approved PRD, status showed PRD draft and ARCHITECTURE, SPECS, TASKS stale.*
 
 ## S3 — Traductions
 
