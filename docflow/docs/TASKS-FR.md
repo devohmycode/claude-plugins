@@ -55,7 +55,7 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S2 — Chaîne de documents
 
-- [ ] **S2-T1** Gabarits des quatre documents en anglais, avec les sections
+- [x] **S2-T1** Gabarits des quatre documents en anglais, avec les sections
   requises et les lignes de lien. Refs: SPECS § 2.
 - [ ] **S2-T2** `lib/docs.mjs` : squelette, index des sections, `section`,
   liens, empreintes, `check`. Refs: SPECS § 2, § 4.
