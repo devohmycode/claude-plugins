@@ -98,7 +98,7 @@ acceptance test and is validated only when it passes.
   and `--resume`. Refs: SPECS § 5.
 - [ ] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
   implementers; `implementer` and `acceptance` agents. Refs: PRD § 6.4.
-- [ ] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
+- [x] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
   `SubagentStop`) scoped with `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
 - [ ] **S4 acceptance** — On a sample project with a two-task sprint:

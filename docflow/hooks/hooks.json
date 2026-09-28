@@ -1,0 +1,39 @@
+{
+  "description": "docflow guard: while a run holds the lock, pushes to the default branch, forced pushes, commits on the default branch, gh pr merge and edits of approved documents are refused, and a turn cannot end with the current task neither ticked nor reported as failed.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" pre",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" subagent",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

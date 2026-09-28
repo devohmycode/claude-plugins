@@ -106,7 +106,7 @@ d'acceptation et n'est validé que s'il réussit.
   et `--resume`. Refs: SPECS § 5.
 - [ ] **S4-T4** Commande `/docflow:do` pour les implémenteurs `session`,
   `task` et `sprint` ; agents `implementer` et `acceptance`. Refs: PRD § 6.4.
-- [ ] **S4-T5** Hooks : garde (`PreToolUse`) et complétude (`Stop`,
+- [x] **S4-T5** Hooks : garde (`PreToolUse`) et complétude (`Stop`,
   `SubagentStop`) délimités avec `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
 - [ ] **S4 acceptance** — Sur un projet d'exemple avec un sprint de deux
