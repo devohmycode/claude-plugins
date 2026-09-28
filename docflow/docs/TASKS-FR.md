@@ -37,7 +37,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S1-T3** `lib/config.mjs` : préséance des options et détection des
   checks. Refs: SPECS § 3. *Done when* les tests unitaires couvrent chaque
   niveau et chaque détecteur.
-- [ ] **S1-T4** `lib/state.mjs` : schéma 1, écritures atomiques, verrou avec
+- [x] **S1-T4** `lib/state.mjs` : schéma 1, écritures atomiques, verrou avec
   expiration. Refs: SPECS § 4, ARCHITECTURE § 8.
 - [ ] **S1-T5** Point d'entrée `scripts/docflow.mjs` avec sortie `KEY=value`,
   codes de sortie, messages i18n, et le verbe `status`. Refs: SPECS § 5.
