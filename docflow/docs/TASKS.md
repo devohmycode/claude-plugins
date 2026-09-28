@@ -53,7 +53,7 @@ acceptance test and is validated only when it passes.
 
 - [x] **S2-T1** Templates for the four documents in English, with required
   sections and link lines. Refs: SPECS § 2.
-- [ ] **S2-T2** `lib/docs.mjs`: skeleton, section index, `section`, links,
+- [x] **S2-T2** `lib/docs.mjs`: skeleton, section index, `section`, links,
   fingerprints, `check`. Refs: SPECS § 2, § 4.
 - [ ] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
   staleness. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).

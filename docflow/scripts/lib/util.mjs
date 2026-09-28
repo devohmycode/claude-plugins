@@ -56,6 +56,40 @@ export function slugify(title, max = 40) {
   return slug || words.join('-').slice(0, max) || 'work'
 }
 
+/**
+ * Which lines of a Markdown text are hidden from the structure: inside a fenced code block
+ * or an HTML comment (a template's `<!-- docflow:todo … -->` may hold example headings).
+ */
+export function hiddenLines(lines) {
+  const hidden = new Array(lines.length).fill(false)
+  let fence = null
+  let comment = false
+  lines.forEach((line, i) => {
+    if (comment) {
+      hidden[i] = true
+      if (line.includes('-->')) comment = false
+      return
+    }
+    const f = /^\s*(```+|~~~+)/.exec(line)
+    if (fence) {
+      hidden[i] = true
+      if (f && f[1][0] === fence[0] && f[1].length >= fence.length) fence = null
+      return
+    }
+    if (f) {
+      fence = f[1]
+      hidden[i] = true
+      return
+    }
+    const open = line.lastIndexOf('<!--')
+    if (open >= 0 && line.indexOf('-->', open) < 0) {
+      comment = true
+      hidden[i] = true
+    }
+  })
+  return hidden
+}
+
 /** Sleeps synchronously (a script step waiting for a lock file). */
 export function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)

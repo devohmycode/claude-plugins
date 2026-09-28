@@ -8,7 +8,9 @@
 //   - [ ] **S<n> acceptance** [(#<issue>)] — <test>.
 //     [*Result (<YYYY-MM-DD>): passed|failed — <evidence>.*]
 
-export const SPRINT_RE = /^## (S\d+)\b(?:\s*[—–-]\s*(.*))?$/
+import { hiddenLines } from './util.mjs'
+
+export const SPRINT_RE =/^## (S\d+)\b(?:\s*[—–-]\s*(.*))?$/
 export const TASK_RE = /^- \[( |x|X)\] \*\*(S\d+-T\d+)\*\*(?: \(#(\d+)\))? (.+)$/
 export const ACCEPTANCE_RE = /^- \[( |x|X)\] \*\*(S\d+) acceptance\*\*(?: \(#(\d+)\))?(?:\s*[—–-])?\s*(.*)$/
 export const RESULT_RE = /^ {2}\*Result \((\d{4}-\d{2}-\d{2})\): (passed|failed) — (.*?)\.?\*$/
@@ -46,9 +48,14 @@ export function parseTasks(text) {
   const lines = String(text).replace(/\r\n/g, '\n').split('\n')
   const sprints = []
   const items = []
+  const hidden = hiddenLines(lines)
   let sprint = null
   let item = null
   lines.forEach((line, i) => {
+    if (hidden[i]) {
+      item = null
+      return
+    }
     const s = SPRINT_RE.exec(line)
     if (s) {
       sprint = { id: s[1], title: (s[2] ?? '').trim(), line: i, tasks: [], acceptance: null }
