@@ -10,6 +10,8 @@
 //   check [doc]                             missing sections, unfilled ones, broken links, grammar
 //   approve <doc>                           check, record, mark the following documents stale
 //   claude-md                               write or refresh the docflow block of CLAUDE.md
+//   translate plan [doc] [--lang l]         changed English sections per twin, in a source file
+//   translate apply <doc> <lang> [file]     splice the translated sections into the twin
 //   language [code|default]                 show or set the per-project language
 //   config [key [value] | key --unset]      show the options, or set one per project
 //   repo plan | repo init [--commit] | repo github [--public]
@@ -46,6 +48,7 @@ import {
 } from './lib/docs.mjs'
 import { defaultBranch, projectRoot } from './lib/git.mjs'
 import { layoutSummary } from './lib/layout.mjs'
+import { applyTwin, checkTwins, planTwin, writeSource } from './lib/translate.mjs'
 import { StateError, approve, markStale, readState, updateState } from './lib/state.mjs'
 import { parseTasks, progress } from './lib/tasks.mjs'
 import { readText, toPosix, writeText } from './lib/util.mjs'
@@ -387,10 +390,70 @@ function cmdLayout() {
 }
 
 /** Problems of the given documents (every existing one without argument), as `# ` lines. */
-function problemsOf(docs) {
+function problemsOf(docs, state = loadState()) {
   const problems = []
-  for (const doc of docs) problems.push(...checkDoc(root, doc))
+  for (const doc of docs) {
+    problems.push(...checkDoc(root, doc))
+    problems.push(...checkTwins(root, state, doc, config.values.doc_languages))
+  }
   return problems
+}
+
+// ─── Translations ───────────────────────────────────────────────────────────
+
+/** The languages a translate verb works on: `--lang`, else the `doc_languages` option. */
+function translateLangs() {
+  if (typeof flags.lang === 'string') {
+    const lang = flags.lang.toLowerCase()
+    if (!['fr', 'es', 'de'].includes(lang)) fail('language', t('unsupportedDocLanguage', { value: flags.lang }), EXIT.unknown)
+    return [lang]
+  }
+  return config.values.doc_languages
+}
+
+function cmdTranslate() {
+  const [action, docArg, langArg, fileArg] = rest
+  if (action === 'plan') {
+    const docs = docArg ? [requireDoc(docArg)] : CHAIN.filter((d) => readText(docPath(root, d)))
+    const langs = translateLangs()
+    if (!langs.length) {
+      out('LANGS', '')
+      return say(t('translateNoLanguage'))
+    }
+    const state = loadState()
+    let total = 0
+    for (const doc of docs)
+      for (const lang of langs) {
+        const plan = planTwin(root, state, doc, lang)
+        if (!plan) continue
+        const files = plan.changed.length ? writeSource(root, doc, lang, plan) : null
+        total += plan.changed.length
+        process.stdout.write(
+          `DOC=${doc} LANG=${lang} CHANGED=${plan.changed.join(',')} REMOVED=${plan.removed.join(',')}${files ? ` SOURCE=${files.source} TARGET=${files.target}` : ''}\n`
+        )
+      }
+    out('TOTAL', total)
+    const translator = agentOf(config.values, 'translator')
+    out('AGENT', translator.type)
+    out('MODEL', translator.model)
+    return say(total ? t('translatePlan', { n: total }) : t('translateNothing'))
+  }
+  if (action === 'apply') {
+    const doc = requireDoc(docArg)
+    const lang = String(langArg ?? '').toLowerCase()
+    if (!['fr', 'es', 'de'].includes(lang)) fail('language', t('unsupportedDocLanguage', { value: langArg ?? '' }), EXIT.unknown)
+    const file = readText(path.resolve(root, fileArg ?? `.docflow/translate/${doc}.${lang}.md`))
+    if (!file) fail('file', t('translateNoFile', { file: fileArg ?? `.docflow/translate/${doc}.${lang}.md` }), EXIT.unknown)
+    // A refused splice returns before touching the twin or the state.
+    const result = changeState((s) => applyTwin(root, s, doc, lang, file.text))
+    if (result.missing) fail('missing', t('translateMissing', { list: result.missing.join(', ') }), EXIT.unknown)
+    if (result.invalid) fail('invalid', t('translateInvalid', { list: result.invalid.join(', ') }), EXIT.unknown)
+    out('FILE', docRel(doc, lang))
+    out('UPDATED', result.updated)
+    out('REMOVED', result.removed)
+    return say(t('translateApplied', { file: docRel(doc, lang), n: result.updated.length }))
+  }
+  fail('usage', t('usage', { syntax: 'translate plan [doc] [--lang fr|es|de] | translate apply <doc> <lang> [file]' }), EXIT.unknown)
 }
 
 function printProblems(problems, limit = 40) {
@@ -471,6 +534,7 @@ const VERBS = {
   check: cmdCheck,
   approve: cmdApprove,
   'claude-md': cmdClaudeMd,
+  translate: cmdTranslate,
   language: cmdLanguage,
   config: cmdConfig,
   repo: cmdRepo,

@@ -72,14 +72,14 @@ acceptance test and is validated only when it passes.
 
 ## S3 — Translations
 
-- [ ] **S3-T1** Section fingerprints per twin in the state; `translate plan`.
+- [x] **S3-T1** Section fingerprints per twin in the state; `translate plan`.
   Refs: SPECS § 4, PRD § 6.2.
-- [ ] **S3-T2** `translate apply`: splice sections, rewrite link lines, record
+- [x] **S3-T2** `translate apply`: splice sections, rewrite link lines, record
   fingerprints. Refs: SPECS § 2, § 5.
 - [x] **S3-T3** Templates in French, Spanish and German. Refs: SPECS § 2.
 - [ ] **S3-T4** `translator` agent and `/docflow:translate`; identifiers, code
   and paths untouched. Refs: ARCHITECTURE § 5.4, § 6.
-- [ ] **S3-T5** `check` covers twins: missing, extra or outdated sections.
+- [x] **S3-T5** `check` covers twins: missing, extra or outdated sections.
   Refs: PRD § 6.2 (L-4).
 
 - [ ] **S3 acceptance** — With `doc_languages: fr`, the chain of S2 produces
