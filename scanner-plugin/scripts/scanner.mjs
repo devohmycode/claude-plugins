@@ -10,6 +10,8 @@
 //                                           through their bridges → findings-B*.json
 //   consolidate <run>                       findings-B*.json → findings.json + triage batches
 //   finalize <run>                          verdicts-T*.json → final.json + history
+//   report <run> [--format html|md] [--out <file>]
+//                                           render final.json (and narrative.json) into the report
 //   select <run> [<selection>]              list the retained findings, resolve a selection
 //   fix <run> <selection> [--model …] [--effort …]
 //                                           fix branch + worktree, remediation guard armed
@@ -45,6 +47,7 @@ import {
   loadProfile,
   matchGlob,
   modeFor,
+  narrativeFor,
   projectRoot,
   readConfig,
   readJson,
@@ -66,6 +69,7 @@ import {
   resolveBridge,
   runBridge,
 } from './bridges.mjs'
+import { renderHtml, renderMarkdown, reportModel } from './report.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, repoState } from './repo.mjs'
 
 const root = projectRoot()
@@ -749,6 +753,56 @@ function cmdFinalize() {
   console.log(`MODE=${final.mode ?? 'report'}`)
   console.log(`FORMAT=${final.report_format}`)
   console.log(`REPORT=${final.report}`)
+  console.log(`NARRATIVE=${narrativeFor(config) ? 'yes' : 'no'}`)
+}
+
+/**
+ * The report, rendered by the script from final.json — no agent writes it. A
+ * `narrative.json` in the run directory (the reporter's, when `reportNarrative` is on) adds
+ * its summary and notes; `reportCss` adds the project's stylesheet to the HTML.
+ */
+function cmdReport() {
+  const config = readConfig(root)
+  const dir = runDir(positional(['format', 'out'])[0] ?? '')
+  const finalFile = path.join(dir, 'final.json')
+  if (!existsSync(finalFile)) fail(t('reportNotFinalized', { dir }))
+  const final = readJson(finalFile)
+  const profile = readJson(path.join(dir, 'profile.json'))
+  const asked = typeof option('format') === 'string' ? option('format') : final.report_format
+  const format = REPORT_FORMATS[asked] ? asked : 'html'
+  const out =
+    typeof option('out') === 'string'
+      ? option('out')
+      : final.report.replace(/\.(html?|md)$/i, `.${REPORT_FORMATS[format]}`)
+  const narrativeFile = path.join(dir, 'narrative.json')
+  let narrative = null
+  if (existsSync(narrativeFile)) {
+    try {
+      narrative = readJson(narrativeFile)
+    } catch (e) {
+      console.log(t('narrativeUnreadable', { error: e.message }))
+    }
+  }
+  const model = reportModel(final, profile, {
+    t,
+    groupBy: config.types?.[final.type]?.reportGroupBy,
+    narrative,
+  })
+  let css = ''
+  if (config.reportCss) {
+    const file = path.join(root, config.reportCss)
+    if (existsSync(file)) css = readFileSync(file, 'utf8')
+    else console.log(t('reportCssMissing', { file: config.reportCss }))
+  }
+  const body =
+    format === 'md'
+      ? renderMarkdown(model, { t, report: path.isAbsolute(out) ? null : out.split(path.sep).join('/') })
+      : renderHtml(model, { t, code: profile.language_code ?? i18n.code, css })
+  const target = path.resolve(root, out)
+  mkdirSync(path.dirname(target), { recursive: true })
+  writeFileSync(target, body, 'utf8')
+  console.log(t('reportWritten', { file: out, findings: final.findings.length, narrative: narrative ? t('withNarrative') : '' }))
+  console.log(`REPORT=${out}`)
 }
 
 // ─── Selection and fixes ────────────────────────────────────────────────────
@@ -1294,6 +1348,7 @@ const commands = {
   'investigate-external': cmdInvestigateExternal,
   consolidate: cmdConsolidate,
   finalize: cmdFinalize,
+  report: cmdReport,
   select: cmdSelect,
   fix: cmdFix,
   'fix-status': cmdFixStatus,

@@ -82,20 +82,28 @@ BATCH=<T1, T2…>
 ## 5. Finalize
 
 `SCANNER finalize <RUN>` — applies the verdicts, compares with the previous scan (new,
-persisting, resolved), archives the result. Note `FORMAT=` (`html` or `md`) and `REPORT=`.
+persisting, resolved), archives the result. Note `FORMAT=` (`html` or `md`), `REPORT=` and
+`NARRATIVE=`.
 
 ## 6. Report — modes `report` and `review` only
 
 In mode `fix`, skip this step: no report is written.
 
-Launch one agent — type `REPORTER=`, model `REPORTER_MODEL=`:
+The report is **rendered by the script** from `final.json`: no agent writes it.
 
-```
-DIR=<run directory>
-FORMAT=<format noted above>
-REPORT=<path noted above>
-INSTRUCTIONS=<the reportInstructions field of .scanner/config.json, if any>
-```
+1. Only when `NARRATIVE=yes` (`reportNarrative` in the config): launch one agent — type
+   `REPORTER=`, model `REPORTER_MODEL=` — which writes a short `narrative.json` in the run
+   directory:
+
+   ```
+   DIR=<run directory>
+   INSTRUCTIONS=<the reportInstructions field of .scanner/config.json, if any>
+   ```
+
+   With `NARRATIVE=no`, launch no agent.
+2. `SCANNER report <RUN>` — writes `REPORT=` in `FORMAT=`, with the summary when
+   `narrative.json` exists. Never write or edit the report yourself: to change its look, the
+   project sets `reportCss`; to change its content, the profile or the findings.
 
 ## 7. Lift the scan guard — always
 
