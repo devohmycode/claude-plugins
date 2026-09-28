@@ -94,7 +94,7 @@ acceptance test and is validated only when it passes.
 - [x] **S4-T2** `lib/run.mjs`: base branch, branch naming, worktree or in
   place, checks with log tail, commit, push, draft pull request, restore.
   Refs: SPECS § 8, ARCHITECTURE § 5.3.
-- [ ] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
+- [x] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
   and `--resume`. Refs: SPECS § 5.
 - [ ] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
   implementers; `implementer` and `acceptance` agents. Refs: PRD § 6.4.

@@ -102,7 +102,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S4-T2** `lib/run.mjs` : branche de base, nommage de branche, worktree
   ou sur place, checks avec fin de log, commit, push, draft pull request,
   restauration. Refs: SPECS § 8, ARCHITECTURE § 5.3.
-- [ ] **S4-T3** Verbes `task show`, `do start|check|commit|acceptance|result|finish`
+- [x] **S4-T3** Verbes `task show`, `do start|check|commit|acceptance|result|finish`
   et `--resume`. Refs: SPECS § 5.
 - [ ] **S4-T4** Commande `/docflow:do` pour les implémenteurs `session`,
   `task` et `sprint` ; agents `implementer` et `acceptance`. Refs: PRD § 6.4.
