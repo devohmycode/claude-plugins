@@ -69,6 +69,14 @@ export function currentBranch(cwd) {
   return b && b !== 'HEAD' ? b : null
 }
 
+/** The default branch: `origin/HEAD`, else a local `main` or `master`, else the current one. */
+export function defaultBranch(cwd) {
+  const head = gitMaybe(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], cwd)
+  if (head) return head.replace(/^origin\//, '')
+  for (const b of ['main', 'master']) if (gitMaybe(['rev-parse', '--verify', '--quiet', `refs/heads/${b}`], cwd)) return b
+  return currentBranch(cwd) ?? 'main'
+}
+
 /** Runs a shell command (the project's checks); never throws. */
 export function shell(command, cwd) {
   const r = spawnSync(command, { cwd, shell: true, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true })

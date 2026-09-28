@@ -4,6 +4,12 @@
 // and on its exit code, never on prose.
 //
 //   status                                  the chain, the sprint progress, the next command
+//   stage <doc> [--adopt] [--agent]         gate, skeleton, what to read and what to fill
+//   section <DOC> [<n[.m]>|headings]        one section (or the whole document, or its headings)
+//   layout                                  a summary of an existing code base (adopt mode)
+//   check [doc]                             missing sections, unfilled ones, broken links, grammar
+//   approve <doc>                           check, record, mark the following documents stale
+//   claude-md                               write or refresh the docflow block of CLAUDE.md
 //   language [code|default]                 show or set the per-project language
 //   config [key [value] | key --unset]      show the options, or set one per project
 //   repo plan | repo init [--commit] | repo github [--public]
@@ -15,13 +21,34 @@
 import path from 'node:path'
 import { LANGUAGES, SUPPORTED, createI18n, resolveLanguage } from './i18n.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState } from './repo.mjs'
-import { blockState } from './lib/claudemd.mjs'
-import { CONFIG_FILE, OPTIONS, PLUGIN_ROOT, checksOf, loadConfig, saveProjectOption } from './lib/config.mjs'
-import { CHAIN, STAGE_OF, docPath, docStatuses } from './lib/docs.mjs'
-import { projectRoot } from './lib/git.mjs'
-import { StateError, readState } from './lib/state.mjs'
+import { MAX_LINES, blockLines, blockState, writeBlock } from './lib/claudemd.mjs'
+import { CONFIG_FILE, OPTIONS, PLUGIN_ROOT, agentOf, checksOf, loadConfig, saveProjectOption } from './lib/config.mjs'
+import {
+  CHAIN,
+  STAGE_OF,
+  basisOf,
+  changedSince,
+  checkDoc,
+  docFingerprint,
+  docName,
+  docPath,
+  docRel,
+  docStatuses,
+  following,
+  indexSections,
+  predecessor,
+  refreshLinks,
+  section,
+  sectionFingerprints,
+  skeleton,
+  strings,
+  unfilled,
+} from './lib/docs.mjs'
+import { defaultBranch, projectRoot } from './lib/git.mjs'
+import { layoutSummary } from './lib/layout.mjs'
+import { StateError, approve, markStale, readState, updateState } from './lib/state.mjs'
 import { parseTasks, progress } from './lib/tasks.mjs'
-import { readText, toPosix } from './lib/util.mjs'
+import { readText, toPosix, writeText } from './lib/util.mjs'
 
 const EXIT = { ok: 0, problem: 1, unknown: 2, repo: REPO_EXIT, gate: 4, checks: 5, busy: 75 }
 
@@ -79,6 +106,16 @@ let t = i18n.t
 function loadState() {
   try {
     return readState(root)
+  } catch (e) {
+    if (e instanceof StateError) fail(`state-${e.code}`, t(e.code === 'busy' ? 'stateBusy' : 'stateError', { detail: e.detail }))
+    throw e
+  }
+}
+
+/** `updateState` with the state errors turned into messages. */
+function changeState(fn) {
+  try {
+    return updateState(root, fn)
   } catch (e) {
     if (e instanceof StateError) fail(`state-${e.code}`, t(e.code === 'busy' ? 'stateBusy' : 'stateError', { detail: e.detail }))
     throw e
@@ -204,15 +241,19 @@ function cmdConfig() {
 const tasksRoot = (state) => state.run?.worktree ?? root
 
 /** The next command and the message that explains it. */
-function nextStep(state, statuses) {
+function nextStep(state, statuses, { block = blockState(root) } = {}) {
   for (const doc of CHAIN) {
     const { status } = statuses[doc]
     const command = `/docflow:${STAGE_OF[doc]}`
     if (status === 'missing') return { command, message: t('nextMissing', { doc, command }) }
+    if (status === 'draft' && !unfilled(statuses[doc].text).length) {
+      const approveCommand = `/docflow:approve ${STAGE_OF[doc]}`
+      return { command: approveCommand, message: t('nextApprove', { doc, command: approveCommand }) }
+    }
     if (status === 'draft') return { command, message: t('nextDraft', { doc, command }) }
     if (status === 'stale') return { command, message: t('nextStale', { doc, command }) }
   }
-  if (blockState(root) === 'missing') {
+  if (block === 'missing') {
     const command = '/docflow:claude-md'
     return { command, message: t('nextClaudeMd', { command }) }
   }
@@ -247,17 +288,198 @@ function cmdStatus() {
   say(next.message)
 }
 
+// ─── Documents ──────────────────────────────────────────────────────────────
+
+const docList = CHAIN.map((d) => STAGE_OF[d]).join(', ')
+
+/** The document named by the first argument, or exit 2. */
+function requireDoc(value) {
+  const doc = docName(value)
+  if (!doc) fail('doc', t('unknownDoc', { doc: value ?? '', list: docList }), EXIT.unknown)
+  return doc
+}
+
+/** Exit 4 unless the document before `doc` is approved. */
+function requireGate(doc, statuses) {
+  const prev = predecessor(doc)
+  if (!prev || statuses[prev].status === 'approved') return
+  out('GATE', prev)
+  fail('gate', t('gate', { doc, prev, status: statuses[prev].status, command: `/docflow:${STAGE_OF[prev]}` }), EXIT.gate)
+}
+
+/** What a stage reads before writing (PRD § 6.1, T-3): whole documents, sections, headings. */
+function inputsOf(doc, adopt) {
+  const layout = adopt ? ['LAYOUT'] : []
+  if (doc === 'PRD') return layout
+  if (doc === 'ARCHITECTURE') return ['PRD', ...layout]
+  if (doc === 'SPECS') return ['PRD', 'ARCHITECTURE']
+  const arch = readText(docPath(root, 'ARCHITECTURE'))
+  const plan = arch && indexSections(arch.text).sections.find((s) => s.level === 2 && strings('en').deliveryPlan.some((w) => s.title.toLowerCase().includes(w.toLowerCase())))
+  return [plan ? `ARCHITECTURE § ${plan.id}` : 'ARCHITECTURE', 'SPECS headings']
+}
+
+function cmdStage() {
+  const doc = requireDoc(rest[0])
+  const state = loadState()
+  const statuses = docStatuses(root, state)
+  requireGate(doc, statuses)
+  const adopt = !!flags.adopt || !!state.adopt
+  if (flags.adopt && !state.adopt) changeState((s) => void (s.adopt = true))
+  const langs = config.values.doc_languages
+  const { created, file } = skeleton(root, doc, { langs, adopt })
+  if (!created) {
+    const current = readText(file)
+    const updated = refreshLinks(current.text, doc, 'en', langs)
+    if (updated !== current.text) writeText(file, updated, current.eol)
+  }
+  const text = readText(file).text
+  const status = created ? 'draft' : statuses[doc].status
+  const todo = unfilled(text)
+  out('DOC', docRel(doc))
+  out('CREATED', created ? 1 : 0)
+  out('STATUS', status)
+  out('INPUTS', inputsOf(doc, adopt))
+  out('SECTIONS', todo.map((u) => u.id))
+  if (status === 'stale') out('CHANGED', changedSince(root, doc, state.docs[doc]))
+  out('LANGS', langs)
+  out('ADOPT', adopt ? 1 : 0)
+  const writer = agentOf(config.values, 'writer')
+  const agent = !!flags.agent || writer.model !== 'inherit' || writer.effort !== 'inherit'
+  out('WRITER', agent ? 'agent' : 'session')
+  if (agent) {
+    out('AGENT', writer.type)
+    out('MODEL', writer.model)
+  }
+  if (created) say(t('stageCreated', { file: docRel(doc), n: todo.length }))
+  else if (status === 'stale') say(t('stageStale', { doc }))
+  else say(todo.length ? t('stageResume', { file: docRel(doc), n: todo.length }) : t('stageFilled', { file: docRel(doc), doc: STAGE_OF[doc] }))
+}
+
+function cmdSection() {
+  // `section SPECS 3.2`, `section "SPECS § 3.2"`, `section SPECS § 3.2`, `section PRD`, `section SPECS headings`.
+  const words = rest.join(' ').split(/\s+/).filter((w) => w && w !== '§')
+  if (words[0]?.toUpperCase() === 'LAYOUT') return cmdLayout()
+  const doc = requireDoc(words[0])
+  const ref = words.slice(1).join(' ').replace(/^§\s*/, '')
+  const file = readText(docPath(state0().run?.worktree ?? root, doc)) ?? readText(docPath(root, doc))
+  if (!file) fail('missing', t('docMissing', { file: docRel(doc) }), EXIT.unknown)
+  if (!ref) return process.stdout.write(`${file.text.replace(/\s+$/, '')}\n`)
+  if (ref.toLowerCase() === 'headings') {
+    const { sections } = indexSections(file.text)
+    return process.stdout.write(`${sections.map((s) => s.heading).join('\n')}\n`)
+  }
+  const text = section(file.text, ref)
+  if (text === null) fail('section', t('unknownSection', { doc, ref }), EXIT.unknown)
+  process.stdout.write(`${text}\n`)
+}
+
+/** The state without failing (the section verb reads it only to find a run's worktree). */
+function state0() {
+  try {
+    return readState(root)
+  } catch {
+    return {}
+  }
+}
+
+function cmdLayout() {
+  process.stdout.write(`${layoutSummary(root).join('\n')}\n`)
+}
+
+/** Problems of the given documents (every existing one without argument), as `# ` lines. */
+function problemsOf(docs) {
+  const problems = []
+  for (const doc of docs) problems.push(...checkDoc(root, doc))
+  return problems
+}
+
+function printProblems(problems, limit = 40) {
+  out('ISSUES', problems.length)
+  for (const p of problems.slice(0, limit)) say(`${p.file}${p.line > 0 ? `:${p.line}` : ''} ${t(`check_${p.key}`, p.vars)}`)
+  if (problems.length > limit) say(t('checkMore', { n: problems.length - limit }))
+}
+
+function cmdCheck() {
+  const docs = rest[0] ? [requireDoc(rest[0])] : CHAIN.filter((d) => readText(docPath(root, d)))
+  const problems = problemsOf(docs)
+  printProblems(problems)
+  if (problems.length) throw new Exit(EXIT.problem)
+  say(t('checkClean', { list: docs.join(', ') || '—' }))
+}
+
+/** The `Next:` of the CLAUDE.md block: the next command, with the unit when it is `do next`. */
+function blockNext(state) {
+  const next = nextStep(state, docStatuses(root, state), { block: 'present' })
+  if (next.unit) return `\`${next.command}\` — ${next.unit.id} — ${next.unit.title}`
+  return `\`${next.command}\``
+}
+
+function refreshBlock(state, { create = false } = {}) {
+  if (!create && blockState(root) === 'missing') return { status: 'absent', lines: 0 }
+  const lines = blockLines({ langs: config.values.doc_languages, base: defaultBranch(root), next: blockNext(state) })
+  return writeBlock(root, lines.slice(0, MAX_LINES))
+}
+
+function cmdApprove() {
+  const doc = requireDoc(rest[0])
+  const state = loadState()
+  const statuses = docStatuses(root, state)
+  if (statuses[doc].status === 'missing') fail('missing', t('docMissing', { file: docRel(doc) }))
+  requireGate(doc, statuses)
+  const problems = problemsOf([doc])
+  if (problems.length) {
+    printProblems(problems)
+    say(t('approveRefused', { doc }))
+    throw new Exit(EXIT.problem)
+  }
+  const text = statuses[doc].text
+  const fp = docFingerprint(doc, text)
+  const stale = changeState((s) => {
+    const before = s.docs[doc]
+    approve(s, doc, fp)
+    s.docs[doc].sections = sectionFingerprints(doc, text)
+    s.docs[doc].basis = basisOf(root, doc)
+    return !before || before.fingerprint !== fp ? markStale(s, following(doc)) : []
+  })
+  const after = loadState()
+  const block = refreshBlock(after)
+  out('APPROVED', doc)
+  out('STALE', stale)
+  out('CLAUDE_MD', block.status)
+  const next = nextStep(after, docStatuses(root, after))
+  out('NEXT', next.command)
+  say(t('approved', { doc }))
+  if (stale.length) say(t('approvedStale', { list: stale.join(', ') }))
+  say(next.message)
+}
+
+function cmdClaudeMd() {
+  const state = loadState()
+  const { status, lines } = refreshBlock(state, { create: true })
+  out('CLAUDE_MD', status)
+  out('LINES', lines)
+  say(t(`claudeMd_${status}`))
+}
+
 // ─── Dispatch ───────────────────────────────────────────────────────────────
 
 const VERBS = {
   status: cmdStatus,
+  stage: cmdStage,
+  section: cmdSection,
+  layout: cmdLayout,
+  check: cmdCheck,
+  approve: cmdApprove,
+  'claude-md': cmdClaudeMd,
   language: cmdLanguage,
   config: cmdConfig,
   repo: cmdRepo,
 }
 
 /** What each verb needs of the repository (SPECS § 5, exit 3). */
-const NEEDS_REPO = {}
+const NEEDS_REPO = {
+  stage: () => ({}),
+}
 
 try {
   if (!VERBS[verb]) fail('verb', t('unknownVerb', { verb: verb ?? '', list: Object.keys(VERBS).join(', ') }), EXIT.unknown)

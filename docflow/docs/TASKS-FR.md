@@ -59,12 +59,12 @@ d'acceptation et n'est validé que s'il réussit.
   requises et les lignes de lien. Refs: SPECS § 2.
 - [x] **S2-T2** `lib/docs.mjs` : squelette, index des sections, `section`,
   liens, empreintes, `check`. Refs: SPECS § 2, § 4.
-- [ ] **S2-T3** Verbes `stage`, `section`, `check`, `approve` avec la barrière
+- [x] **S2-T3** Verbes `stage`, `section`, `check`, `approve` avec la barrière
   et l'obsolescence. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
-- [ ] **S2-T4** `lib/claudemd.mjs` et le verbe `claude-md`. Refs: SPECS § 7.
+- [x] **S2-T4** `lib/claudemd.mjs` et le verbe `claude-md`. Refs: SPECS § 7.
 - [ ] **S2-T5** Commandes `prd` (avec l'entretien), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
-- [ ] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
+- [x] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
   résumé de la structure par script, S1 de `TASKS.md` pré-coché.
   Refs: PRD § 6.1 (D-5).
 - [ ] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.

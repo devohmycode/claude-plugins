@@ -55,12 +55,12 @@ acceptance test and is validated only when it passes.
   sections and link lines. Refs: SPECS § 2.
 - [x] **S2-T2** `lib/docs.mjs`: skeleton, section index, `section`, links,
   fingerprints, `check`. Refs: SPECS § 2, § 4.
-- [ ] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
+- [x] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
   staleness. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
-- [ ] **S2-T4** `lib/claudemd.mjs` and the `claude-md` verb. Refs: SPECS § 7.
+- [x] **S2-T4** `lib/claudemd.mjs` and the `claude-md` verb. Refs: SPECS § 7.
 - [ ] **S2-T5** Commands `prd` (with the interview), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
-- [ ] **S2-T6** Adopt mode for an existing code base (`--adopt`): layout
+- [x] **S2-T6** Adopt mode for an existing code base (`--adopt`): layout
   summary by script, S1 of `TASKS.md` pre-ticked. Refs: PRD § 6.1 (D-5).
 - [ ] **S2-T7** `writer` agent. Refs: ARCHITECTURE § 6.
 
