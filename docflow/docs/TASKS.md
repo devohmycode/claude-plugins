@@ -29,7 +29,7 @@ acceptance test and is validated only when it passes.
   version 0.1.0, author, license, keywords) and list it in
   `.claude-plugin/marketplace.json` with `"source": "./docflow"`.
   Refs: ARCHITECTURE § 3, PRD § 6.7.
-- [ ] **S1-T2** Run `node scripts/sync-shared.mjs`: shared copies, empty
+- [x] **S1-T2** Run `node scripts/sync-shared.mjs`: shared copies, empty
   locales, `userConfig.language`. Add the other `userConfig` options.
   Refs: SPECS § 3. *Done when* `sync-shared.mjs --check` passes.
 - [ ] **S1-T3** `lib/config.mjs`: option precedence and checks detection.

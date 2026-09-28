@@ -31,7 +31,7 @@ d'acceptation et n'est validé que s'il réussit.
   version 0.1.0, auteur, licence, mots-clés) et le lister dans
   `.claude-plugin/marketplace.json` avec `"source": "./docflow"`.
   Refs: ARCHITECTURE § 3, PRD § 6.7.
-- [ ] **S1-T2** Lancer `node scripts/sync-shared.mjs` : copies partagées,
+- [x] **S1-T2** Lancer `node scripts/sync-shared.mjs` : copies partagées,
   locales vides, `userConfig.language`. Ajouter les autres options de
   `userConfig`. Refs: SPECS § 3. *Done when* `sync-shared.mjs --check` passe.
 - [ ] **S1-T3** `lib/config.mjs` : préséance des options et détection des
