@@ -116,6 +116,25 @@ export function applyTwin(root, state, doc, lang, translatedText, { now = Date.n
 }
 
 /**
+ * Adopt mode (PRD § 6.1, D-5): a twin written before docflow — nothing recorded for it — is
+ * taken as translated from the current English text, for the sections it holds. Without
+ * this, every section of a hand-written twin reads as outdated, and translating it again
+ * would overwrite a person's work. False when something is recorded already.
+ */
+export function adoptTwin(root, state, doc, lang) {
+  if (state.translations?.[doc]?.[lang]) return false
+  const plan = planTwin(root, state, doc, lang)
+  if (!plan?.exists) return false
+  const twinIds = chunks(readText(docPath(root, doc, lang)).text).map((c) => c.id)
+  const recorded = {}
+  for (const c of plan.enChunks) if (twinIds.includes(c.id)) recorded[c.id] = plan.fingerprints[c.id]
+  state.translations ??= {}
+  state.translations[doc] ??= {}
+  state.translations[doc][lang] = recorded
+  return true
+}
+
+/**
  * Problems of the twins of `doc` (PRD L-4): a missing twin, missing or extra sections,
  * sections translated from an older English text, broken links.
  */

@@ -29,6 +29,7 @@
   "unknownSection": "{doc} no tiene la sección {ref}.",
   "gate": "{doc} no puede empezar: {prev} está en estado {status} y antes debe aprobarse. {command} lo completa.",
   "stageCreated": "Esqueleto escrito: {file}, {n} sección(es) por completar.",
+  "stageTwinsAdopted": "{list}: escrita antes de docflow, se considera traducida del texto inglés actual; /docflow:translate solo enviará las secciones modificadas a partir de ahora.",
   "stageResume": "{file} existe: quedan {n} sección(es) por completar.",
   "stageFilled": "{file} está completo: revíselo y luego /docflow:approve {doc}.",
   "stageStale": "{doc} está desactualizado: revíselo frente a las secciones modificadas (CHANGED) y apruébelo de nuevo.",
