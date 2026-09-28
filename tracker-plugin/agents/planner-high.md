@@ -57,7 +57,7 @@ write to GitHub.
 
 ```json
 {
-  "summary": "In LANG: one or two sentences on what the plan covers.",
+  "summary": "In LANG: one or two sentences on what the plan covers — never its progress (which lots are done): the page counts that, and a sentence would be false at the first lot marked.",
   "scopes": [
     { "id": "security", "title": "In LANG", "summary": "In LANG", "lots": ["1", "2"] }
   ],

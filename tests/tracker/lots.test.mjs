@@ -151,6 +151,18 @@ describe('lock', () => {
     assert.equal(releaseLock(file, '2'), true)
     assert.equal(existsSync(file), false)
   })
+
+  it('releases only the lot named, held by the agent named, unless forced', () => {
+    const file = path.join(dir, 'lock-release')
+    assert.equal(tryLock(file, { lot: '3', agent: 'claude' }).ok, true)
+    assert.equal(releaseLock(file), false)
+    assert.equal(releaseLock(file, '3', { agent: 'codex' }), false)
+    assert.equal(existsSync(file), true)
+    assert.equal(releaseLock(file, '3', { agent: 'claude' }), true)
+    assert.equal(tryLock(file, { lot: '4', agent: 'claude' }).ok, true)
+    assert.equal(releaseLock(file, null, { force: true }), true)
+    assert.equal(existsSync(file), false)
+  })
 })
 
 describe('lots on a repository', () => {
