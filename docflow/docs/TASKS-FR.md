@@ -109,13 +109,14 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S4-T5** Hooks : garde (`PreToolUse`) et complétude (`Stop`,
   `SubagentStop`) délimités avec `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
-- [ ] **S4 acceptance** — Sur un projet d'exemple avec un sprint de deux
+- [x] **S4 acceptance** — Sur un projet d'exemple avec un sprint de deux
   tâches : `/docflow:do next` met en œuvre le sprint sur `docflow/S1-…`,
   exécute les checks, coche les deux tâches et l'acceptation dans
   `TASKS.md` et son jumeau, ouvre une draft pull request ; `main` reste
   inchangée ; pendant l'exécution, `git push origin main` et `gh pr merge`
   sont refusés ; un échec de check forcé arrête l'exécution et `--resume`
   la termine.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample Node project with a two-task sprint, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:do next with checks forced to fail stopped at S1-T1 (RUN=failed:S1, branch kept); in the same session git push origin main and gh pr merge 1 were refused by the hook; /docflow:do --resume in a new session implemented both tasks on docflow/S1-adding, ticked them and the acceptance in TASKS.md and TASKS-FR.md, and opened a draft pull request against main; main and origin/main unchanged.*
 
 ## S5 — Miroir des issues
 

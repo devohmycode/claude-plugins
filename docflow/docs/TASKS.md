@@ -101,12 +101,13 @@ acceptance test and is validated only when it passes.
 - [x] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
   `SubagentStop`) scoped with `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
-- [ ] **S4 acceptance** — On a sample project with a two-task sprint:
+- [x] **S4 acceptance** — On a sample project with a two-task sprint:
   `/docflow:do next` implements the sprint on `docflow/S1-…`, runs the checks,
   ticks both tasks and the acceptance in `TASKS.md` and its twin, opens a draft
   pull request; `main` is unchanged; during the run `git push origin main` and
   `gh pr merge` are refused; a forced check failure stops the run and
   `--resume` completes it.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample Node project with a two-task sprint, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:do next with checks forced to fail stopped at S1-T1 (RUN=failed:S1, branch kept); in the same session git push origin main and gh pr merge 1 were refused by the hook; /docflow:do --resume in a new session implemented both tasks on docflow/S1-adding, ticked them and the acceptance in TASKS.md and TASKS-FR.md, and opened a draft pull request against main; main and origin/main unchanged.*
 
 ## S5 — Issues mirror
 
