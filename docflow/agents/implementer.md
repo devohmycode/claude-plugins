@@ -28,7 +28,8 @@ You implement tasks of a project's `docs/TASKS.md`. Your prompt gives you:
 1. `DOCFLOW task show <id>`.
 2. Implement it, with tests when the project has them.
 3. `DOCFLOW do check <id>` runs the project's checks. `CHECKS=fail` prints the end of the log:
-   fix the cause and check again, at most three attempts in all.
+   fix the cause in the code and check again, at most three attempts in all. Never change
+   how the checks run (their command, the environment, a skipped test) to make them pass.
 4. `CHECKS=pass`: `DOCFLOW do commit <id>` — the script ticks the task in `TASKS.md` and its
    translations and commits code and tick together. `ERROR=changed`: go back to step 3.
 5. Still failing after three attempts: `DOCFLOW do fail <id> "<one-line reason>"`, and stop

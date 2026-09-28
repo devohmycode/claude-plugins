@@ -38,8 +38,10 @@ With `IMPLEMENTER=session` (the default — the code you read stays loaded):
    whole specification of the task; do not open the documents.
 2. Implement it in `WORKDIR`: absolute paths for Read/Edit/Write, `cd "<WORKDIR>" &&` before
    each command. Follow the project's `CLAUDE.md`. Change only what the task needs.
-3. `DOCFLOW do check <id>`. `CHECKS=fail` (exit 5) prints the end of the log: fix the cause,
-   check again — at most three attempts. Still failing: `DOCFLOW do fail <id> "<reason>"`,
+3. `DOCFLOW do check <id>`. `CHECKS=fail` (exit 5) prints the end of the log: fix the cause
+   in the code, check again — at most three attempts. Never change how the checks run (their
+   command, the environment, a skipped test) to make them pass: when the cause is outside
+   the code, it is a failure to report. Still failing: `DOCFLOW do fail <id> "<reason>"`,
    report what fails, and stop — the branch stays; `/docflow:do --resume` continues later.
 4. `DOCFLOW do commit <id>` ticks the task in `TASKS.md` and its translations and commits
    code and tick together. `ERROR=changed`: files changed since the check — check again.

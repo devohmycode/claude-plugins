@@ -247,6 +247,17 @@ describe('preconditions and the lock', () => {
   })
 })
 
+describe('resuming from another session', () => {
+  it('takes over the lock of a failed run, not of a running one', () => {
+    const repo = project('takeover')
+    assert.equal(docflow(ws, repo, ['do', 'start', 'next']).code, 0)
+    docflow(ws, repo, ['do', 'fail', 'S1-T1', 'forced'])
+    const resumed = docflow(ws, repo, ['do', 'start', '--resume'], { CLAUDE_CODE_SESSION_ID: 'later' })
+    assert.deepEqual([resumed.code, resumed.keys.TASKS], [0, 'S1-T1,S1-T2'])
+    assert.equal(docflow(ws, repo, ['do', 'start', '--resume'], { CLAUDE_CODE_SESSION_ID: 'third' }).code, 75)
+  })
+})
+
 describe('the guard', () => {
   it('refuses pushes to the default branch, forced pushes, merges and edits of approved documents during a run', () => {
     const repo = project('guard')

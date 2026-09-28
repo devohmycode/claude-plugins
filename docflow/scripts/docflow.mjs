@@ -569,7 +569,8 @@ function cmdClaudeMd() {
 
 // ─── Implementation ─────────────────────────────────────────────────────────
 
-const session = sessionOf() ?? 'none'
+// Null outside Claude Code: the guard then keeps its repository limit only (scope.mjs).
+const session = sessionOf()
 /** What must be committed before a run starts: the documents and the project options. */
 const DOC_PATHS = ['docs', 'CLAUDE.md', '.docflow/config.json', '.docflow/.gitignore']
 
@@ -617,8 +618,8 @@ function printRun(run) {
   out('CHECKS', checksOf(config.values, root).command ?? '')
 }
 
-function takeLock(state, { takeover }) {
-  const lock = changeState((s) => acquireLock(s, session, { takeover }))
+function takeLock(state, { takeover, force = false }) {
+  const lock = changeState((s) => acquireLock(s, session, { takeover, force }))
   if (lock.ok) return
   out('LOCK', lock.lock.session)
   out('SINCE', lock.lock.since)
@@ -702,7 +703,7 @@ function doStart() {
 function doResume(state) {
   const run = state.run
   // A failed run was left by its session: another one may take it over.
-  takeLock(state, { takeover: !!flags.takeover || run.status === 'failed' })
+  takeLock(state, { takeover: !!flags.takeover, force: run.status === 'failed' })
   if (run.worktree && !existsSync(run.worktree)) fail('worktree', t('runWorktreeMissing', { dir: toPosix(run.worktree) }))
   if (!run.worktree && currentBranch(root) !== run.branch) {
     if (trackedChanges(root).length) fail('dirty', t('dirtyTree'))

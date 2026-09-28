@@ -138,9 +138,10 @@ export const lockExpired = (lock, now = Date.now()) => !!lock && Date.parse(lock
  * session's lock refuses (`busy`), unless it expired and `takeover` is set (`expired`
  * otherwise: the command asks the user first).
  */
-export function acquireLock(state, session, { now = Date.now(), takeover = false } = {}) {
+export function acquireLock(state, session, { now = Date.now(), takeover = false, force = false } = {}) {
   const held = state.lock
-  if (held && held.session !== session) {
+  // `force`: the owner gave the run up (a failed run resumed from another session).
+  if (held && held.session !== session && !force) {
     if (!lockExpired(held, now)) return { ok: false, reason: 'busy', lock: held }
     if (!takeover) return { ok: false, reason: 'expired', lock: held }
   }
