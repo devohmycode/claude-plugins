@@ -143,7 +143,7 @@ d'acceptation et n'est validé que s'il réussit.
   `plugin.json` et `marketplace.json`, entrée dans le README racine.
 - [ ] **S6-T3** Appliquer docflow à Taskbar Hub avec `--adopt` et faire
   passer un sprint par `/docflow:do`.
-- [ ] **S6-T4** Mesurer les budgets de SPECS § 10 et les checks de tokens de
+- [x] **S6-T4** Mesurer les budgets de SPECS § 10 et les checks de tokens de
   PRD § 11 ; les consigner.
 
 - [ ] **S6 acceptance** — Chaque critère d'acceptation de PRD § 11 passe sur

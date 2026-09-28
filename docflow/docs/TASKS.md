@@ -133,7 +133,7 @@ acceptance test and is validated only when it passes.
   `marketplace.json`, root README entry.
 - [ ] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
   through `/docflow:do`.
-- [ ] **S6-T4** Measure SPECS § 10 budgets and PRD § 11 token checks; record
+- [x] **S6-T4** Measure SPECS § 10 budgets and PRD § 11 token checks; record
   them.
 
 - [ ] **S6 acceptance** — Every PRD § 11 acceptance criterion passes on a fresh

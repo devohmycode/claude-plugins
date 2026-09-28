@@ -208,11 +208,20 @@ repository):
 
 ## 10. Budgets
 
-| Measure | Limit |
-|---|---|
-| Any script verb except `do check`, `do finish` and `issues` | < 1 s on a repository of 5,000 files |
-| Hook decision | < 100 ms |
-| `CLAUDE.md` block | ≤ 40 lines |
-| Command file | ≤ 120 lines |
-| Output of a verb on success | ≤ 20 lines |
-| Log shown after failed checks | last 60 lines |
+| Measure | Limit | Measured (2026-09-28) |
+|---|---|---|
+| Any script verb except `do check`, `do finish` and `issues` | < 1 s on a repository of 5,000 files | 262–452 ms; `do start` 952 ms, `do commit` 942 ms (Windows, median of 3) |
+| Hook decision | < 100 ms | 62–66 ms, process start included (was 318 ms before the hook read git's layout from the file system) |
+| `CLAUDE.md` block | ≤ 40 lines | 13 lines; 14 on Taskbar Hub |
+| Command file | ≤ 120 lines | 84 lines at most (`do.md`) |
+| Output of a verb on success | ≤ 20 lines | 17 lines at most (`config`) |
+| Log shown after failed checks | last 60 lines | 60 lines |
+
+`tests/docflow/budgets.test.mjs` measures the first five rows and fails when one is
+exceeded.
+
+Token check of PRD § 11, criterion 7 (`implementer: task`, measured on a sample project
+through `claude -p --output-format stream-json`, two runs): the agent read no document —
+the task line and its referenced section came from `task show` — but it listed the
+project and opened two source files it did not change, beside the test and `package.json`.
+Partly met: documents are never loaded; neighbouring code still is.

@@ -18,7 +18,7 @@ import path from 'node:path'
 import { createI18n } from './i18n.mjs'
 import { PLUGIN_ROOT, readProjectConfig } from './lib/config.mjs'
 import { CHAIN } from './lib/docs.mjs'
-import { currentBranch, gitMaybe, projectRoot } from './lib/git.mjs'
+import { fastCurrentBranch, fastProjectRoot, gitMaybe } from './lib/git.mjs'
 import { readState } from './lib/state.mjs'
 import { commandDirs, concerns, normalizeDir, within } from './scope.mjs'
 
@@ -99,7 +99,7 @@ function onBash(state, root, input) {
     const call = gitCall(segment)
     if (!call || !['push', 'commit'].includes(call.sub)) continue
     const dir = call.dir ? path.resolve(cwd, normalizeDir(call.dir)) : (moved.at(-1) ?? cwd)
-    const branch = currentBranch(dir)
+    const branch = fastCurrentBranch(dir)
     if (call.sub === 'push') {
       const problem = pushProblem(call.args, { base, branch })
       if (problem === 'force') deny(t('guardForce'))
@@ -141,7 +141,7 @@ let t = (key) => key
 try {
   const input = readInput()
   if (!input) process.exit(0)
-  const root = projectRoot(input.cwd ?? process.cwd())
+  const root = fastProjectRoot(input.cwd ?? process.cwd())
   const state = readState(root)
   if (!state.guard) process.exit(0)
   let language = null

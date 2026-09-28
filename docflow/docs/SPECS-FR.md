@@ -185,11 +185,21 @@ Refus du garde (`PreToolUse`, pendant qu'une exécution est active dans cette se
 
 ## 10. Budgets
 
-| Mesure | Limite |
-|---|---|
-| Tout verbe du script sauf `do check`, `do finish` et `issues` | < 1 s sur un dépôt de 5 000 fichiers |
-| Décision du hook | < 100 ms |
-| Bloc `CLAUDE.md` | ≤ 40 lignes |
-| Fichier de commande | ≤ 120 lignes |
-| Sortie d'un verbe en cas de succès | ≤ 20 lignes |
-| Journal affiché après l'échec des checks | dernières 60 lignes |
+| Mesure | Limite | Mesuré (28/09/2026) |
+|---|---|---|
+| Tout verbe du script sauf `do check`, `do finish` et `issues` | < 1 s sur un dépôt de 5 000 fichiers | 262–452 ms ; `do start` 952 ms, `do commit` 942 ms (Windows, médiane de 3) |
+| Décision du hook | < 100 ms | 62–66 ms, démarrage du processus compris (318 ms avant que le hook ne lise la disposition de git dans le système de fichiers) |
+| Bloc `CLAUDE.md` | ≤ 40 lignes | 13 lignes ; 14 sur Taskbar Hub |
+| Fichier de commande | ≤ 120 lignes | 84 lignes au plus (`do.md`) |
+| Sortie d'un verbe en cas de succès | ≤ 20 lignes | 17 lignes au plus (`config`) |
+| Journal affiché après l'échec des checks | dernières 60 lignes | 60 lignes |
+
+`tests/docflow/budgets.test.mjs` mesure les cinq premières lignes et échoue si l'une est
+dépassée.
+
+Contrôle de jetons du PRD § 11, critère 7 (`implementer: task`, mesuré sur un projet
+d'exemple par `claude -p --output-format stream-json`, deux runs) : l'agent n'a lu aucun
+document — la ligne de la tâche et sa section référencée venaient de `task show` —, mais
+il a listé le projet et ouvert deux fichiers source qu'il n'a pas modifiés, en plus du test
+et de `package.json`. Partiellement tenu : les documents ne sont jamais chargés ; le code
+voisin l'est encore.
