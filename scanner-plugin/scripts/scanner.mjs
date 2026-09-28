@@ -70,6 +70,7 @@ import {
   runBridge,
 } from './bridges.mjs'
 import { renderHtml, renderMarkdown, reportModel } from './report.mjs'
+import { sessionOf } from './scope.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, repoState } from './repo.mjs'
 
 const root = projectRoot()
@@ -381,6 +382,7 @@ function cmdPrepare() {
   for (const b of batches) writeJson(path.join(dir, `batch-${b.id}.json`), b.files)
   writeJson(path.join(dir, 'meta.json'), meta)
   writeJson(stateFile(root), {
+    session: sessionOf(),
     mode: 'scan',
     run,
     type,
@@ -918,6 +920,7 @@ function cmdFix() {
   }
   writeJson(path.join(dir, 'remediation.json'), remediation)
   writeJson(stateFile(root), {
+    session: sessionOf(),
     mode: 'remediation',
     run: final.run,
     finding: remediation.findings.join(','),
@@ -1144,6 +1147,7 @@ function cmdGuard() {
     const finding = final.findings.find((f) => f.id === id)
     if (!finding) fail(t('findingNotFound', { id, run }))
     writeJson(stateFile(root), {
+      session: sessionOf(),
       mode: 'remediation',
       run: final.run,
       finding: id,

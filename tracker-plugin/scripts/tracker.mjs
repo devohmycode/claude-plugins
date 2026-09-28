@@ -66,6 +66,7 @@ import {
   validateProposal,
   withBlock,
 } from './lots.mjs'
+import { sessionOf } from './scope.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState } from './repo.mjs'
 import {
   AGENT_SETTINGS,
@@ -686,7 +687,7 @@ function arm(state) {
   const current = readState(root)
   if (current && !(current.run === state.run && current.mode === state.mode))
     fail(t('guardBusy', { mode: current.mode, run: current.run }))
-  writeJson(stateFile(root), { ...state, lang: i18n.code, expires: expiry(config) })
+  writeJson(stateFile(root), { ...state, session: sessionOf(), lang: i18n.code, expires: expiry(config) })
 }
 
 function disarm(run = null) {
