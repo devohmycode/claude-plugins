@@ -83,7 +83,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S3-T2** `translate apply` : fusionner les sections, réécrire les
   lignes de lien, enregistrer les empreintes. Refs: SPECS § 2, § 5.
 - [x] **S3-T3** Gabarits en français, espagnol et allemand. Refs: SPECS § 2.
-- [ ] **S3-T4** Agent `translator` et `/docflow:translate` ; identifiants,
+- [x] **S3-T4** Agent `translator` et `/docflow:translate` ; identifiants,
   code et chemins non modifiés. Refs: ARCHITECTURE § 5.4, § 6.
 - [x] **S3-T5** `check` couvre les jumeaux : sections manquantes, en trop ou
   obsolètes. Refs: PRD § 6.2 (L-4).
