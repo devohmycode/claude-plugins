@@ -129,7 +129,7 @@ acceptance test and is validated only when it passes.
 
 - [x] **S6-T1** `docflow/README.md` (and `README-FR.md`): install, options,
   commands, the flow, token tips.
-- [ ] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
+- [x] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
   `marketplace.json`, root README entry.
 - [ ] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
   through `/docflow:do`.

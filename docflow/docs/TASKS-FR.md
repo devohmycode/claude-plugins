@@ -139,7 +139,7 @@ d'acceptation et n'est validé que s'il réussit.
 
 - [x] **S6-T1** `docflow/README.md` (et `README-FR.md`) : installation,
   options, commandes, le flux, astuces de tokens.
-- [ ] **S6-T2** Publication 0.1.0 du marketplace : versions dans
+- [x] **S6-T2** Publication 0.1.0 du marketplace : versions dans
   `plugin.json` et `marketplace.json`, entrée dans le README racine.
 - [ ] **S6-T3** Appliquer docflow à Taskbar Hub avec `--adopt` et faire
   passer un sprint par `/docflow:do`.

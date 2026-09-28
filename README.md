@@ -8,6 +8,7 @@ A [Claude Code](https://code.claude.com) plugin marketplace.
 /plugin marketplace add devohmycode/claude-plugins
 /plugin install scanner@devohmycode-plugins
 /plugin install tracker@devohmycode-plugins
+/plugin install docflow@devohmycode-plugins
 ```
 
 Update later with `/plugin marketplace update devohmycode-plugins`.
@@ -16,14 +17,15 @@ Update later with `/plugin marketplace update devohmycode-plugins`.
 
 | Plugin | Version | Description |
 | --- | --- | --- |
-| [scanner](scanner-plugin/) | 0.7.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
-| [tracker](tracker-plugin/) | 0.3.0 | The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans, triage them against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch. |
+| [scanner](scanner-plugin/) | 0.9.0 | Local, profile-driven repository scans (security, performance, accessibility, dead code, test coverage): parallel investigation, adversarial triage, HTML or Markdown report, finding tracking across scans, and guarded remediation. |
+| [tracker](tracker-plugin/) | 0.5.0 | The life cycle of audit findings in GitHub issues: open the missing issues from scanner runs or any findings file (deduplicated by a key written into each issue), sync them with later scans, triage them against the current code with a skeptic counter-check, and fix them in batches — one branch, one worktree and one draft pull request per batch. |
+| [docflow](docflow/) | 0.1.0 | From an idea to merged code through a fixed chain of linked documents — PRD, architecture, specifications, tasks and a `CLAUDE.md` block, each approved at a checkpoint and optionally translated section by section — then the plan implemented task by task or sprint by sprint, on its own branch, with the project's checks, a ticked `TASKS.md` and a draft pull request. |
 
 ## Layout
 
 ```
 .claude-plugin/marketplace.json   the catalogue
-<name>-plugin/                    one directory per plugin, each with its own
+<name>-plugin/                    one directory per plugin (docflow/ for docflow), each with its own
   .claude-plugin/plugin.json      manifest, commands, agents, hooks…
   locales/{en,fr,es,de}.json      the plugin's messages
   scripts/i18n.mjs                generated copy of shared/i18n/i18n.mjs
