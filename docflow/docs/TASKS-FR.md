@@ -125,7 +125,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S5-T2** Numéros d'issue dans `TASKS.md` ; `Closes #` dans les draft
   pull requests. Refs: PRD § 6.8 (S-2).
 - [x] **S5-T3** `issues pull` et `--apply`. Refs: PRD § 6.8 (S-3).
-- [ ] **S5-T4** Commande `/docflow:issues` avec les checks du dépôt et de
+- [x] **S5-T4** Commande `/docflow:issues` avec les checks du dépôt et de
   GitHub. Refs: PRD § 6.7 (M-2).
 
 - [ ] **S5 acceptance** — Avec `issues: mirror`, lancer `/docflow:issues push`

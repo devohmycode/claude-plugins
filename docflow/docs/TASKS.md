@@ -116,7 +116,7 @@ acceptance test and is validated only when it passes.
 - [x] **S5-T2** Issue numbers in `TASKS.md`; `Closes #` in draft pull requests.
   Refs: PRD § 6.8 (S-2).
 - [x] **S5-T3** `issues pull` and `--apply`. Refs: PRD § 6.8 (S-3).
-- [ ] **S5-T4** `/docflow:issues` command with the repository and GitHub
+- [x] **S5-T4** `/docflow:issues` command with the repository and GitHub
   checks. Refs: PRD § 6.7 (M-2).
 
 - [ ] **S5 acceptance** — With `issues: mirror`, `/docflow:issues push` twice
