@@ -14,7 +14,7 @@ export const CONFIG_FILE = `${STATE_DIR}/config.json`
 export const LOCALES_DIR = path.join(PLUGIN_ROOT, 'locales')
 
 /** The agents of the plugin, whose model and effort can be set. */
-export const ROLES = ['triager', 'skeptic', 'fixer']
+export const ROLES = ['triager', 'skeptic', 'fixer', 'planner']
 
 /**
  * What a role runs on when nothing sets it: a triager re-measures one issue, a job a
@@ -128,6 +128,27 @@ export const DEFAULT_CONFIG = {
     checks: [],
     checkTimeoutMinutes: 15,
     draft: true,
+  },
+  // Plans: the open issues cut into numbered lots, committed, fixed one lot at a time.
+  plan: {
+    // Where the twin files (<name>.json, <name>.html) are written.
+    dir: 'docs/issues',
+    // {YYYY}, {MM}, {DD}: the day the plan is written.
+    name: '{YYYY}-{MM}-{DD}-plan',
+    // Issues read for a plan.
+    max: 200,
+    // A hint to the planner: issues per lot, at most.
+    perLot: 6,
+    // A lock not renewed for that long can be taken by another agent.
+    staleHours: 4,
+    // --wait gives up after that long (the shell tools of agents stop a command at 10).
+    waitMinutes: 9,
+    // How agents outside Claude Code call the script (after `vendor`).
+    cli: 'node .tracker/bin/scripts/tracker.mjs',
+    // Instruction files that receive the protocol block (`instructions`), when they exist.
+    instructionFiles: ['CLAUDE.md', 'AGENTS.md'],
+    // `lot commit`: the conventional prefix of the message.
+    commitPrefix: 'docs(issues)',
   },
   guard: {
     ttlHours: 6,

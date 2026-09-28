@@ -16,6 +16,17 @@
 //   batch checks <run> <B1>                     run the project's checks in the worktree
 //   batch status <run> [<B1>]                   outcomes, commits, checks
 //   batch finish <run> <B1> [--push] [--pr]     push the branch, open the pull request
+//   plan draft <selector…> [--max n]            the planner's input; guard armed (read-only tree)
+//   plan write <run> [--name n] [--replace] [--apply]   the planner's proposal → the committed plan
+//   plan import <file> [--name n] [--apply]     a plan of the previous format (decker.lots-issues/1)
+//   lot take <id|next> --agent <name> [--wait] [--timeout m] [--plan f]   the lock: exit 0, or 75 = busy
+//   lot release [<id>] [--force] · lot lock      give the lock back · who holds it
+//   lot start <id|next> --agent <name> [--wait] the lock, then a batch run of that lot
+//   lot mark <id> --pr <n> [--state s] [--branch b] [--url u]   done; releases the lock
+//   lot commit [--plan f]                       commit the plan's two files on its base branch
+//   lot status [--plan f] · lot sync [--apply]  the lots · pull request states → the plan
+//   instructions [--create] [--apply]           the protocol block in CLAUDE.md, AGENTS.md…
+//   vendor [--apply]                            a copy of the scripts in .tracker/bin, for any agent
 //   status                                      open issues by priority, runs, guard
 //   check                                       config, gh, sources
 //   language [<code>] · model [<role>|all] [--model …] [--effort …] · guard status|off
@@ -25,7 +36,7 @@
 // batch also need a commit. Without them: REPO=none|empty|no-remote|no-git, exit 3.
 
 import { execFileSync, execSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   SEVERITIES,
@@ -35,10 +46,31 @@ import {
   validateFindings,
 } from './findings.mjs'
 import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
+import {
+  BUSY_EXIT,
+  LEGACY_SCHEMA,
+  PLAN_SCHEMA,
+  importLegacy,
+  instructionsBlock,
+  isStale,
+  lockFile,
+  lotOf,
+  markLot,
+  nextLot,
+  planFromProposal,
+  planPaths,
+  readLock,
+  releaseLock,
+  renderHtml,
+  tryLock,
+  validateProposal,
+  withBlock,
+} from './lots.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState } from './repo.mjs'
 import {
   AGENT_SETTINGS,
   CONFIG_FILE,
+  PLUGIN_ROOT,
   ROLES,
   STATE_DIR,
   agentOf,
@@ -99,7 +131,26 @@ const RUNS = path.join(root, STATE_DIR, 'runs')
 
 // ─── Arguments ──────────────────────────────────────────────────────────────
 
-const VALUE_OPTIONS = ['min-severity', 'only', 'link', 'max', 'model', 'effort', 'per-batch', 'group', 'fixer', 'per-agent']
+const VALUE_OPTIONS = [
+  'min-severity',
+  'only',
+  'link',
+  'max',
+  'model',
+  'effort',
+  'per-batch',
+  'group',
+  'fixer',
+  'per-agent',
+  'agent',
+  'timeout',
+  'plan',
+  'name',
+  'pr',
+  'state',
+  'branch',
+  'url',
+]
 
 function option(name, fallback = null) {
   const i = args.indexOf(`--${name}`)
@@ -894,7 +945,10 @@ function batchStart() {
   const { plan, batch, file } = batchOf(dir, id)
   if (existsSync(file)) fail(t('batchStarted', { id, run }))
   const scope = fixerScope(option('fixer', plan.fixer ?? config.batch.fixer))
-  const stem = `${config.batch.branchPrefix}tracker-${slug(batch.group)}-${dateTokens().YYYY}${dateTokens().MM}${dateTokens().DD}`
+  const day = `${dateTokens().YYYY}${dateTokens().MM}${dateTokens().DD}`
+  const stem = plan.lot
+    ? `${config.batch.branchPrefix}lot-${slug(plan.lot.id)}-${slug(batch.group)}`
+    : `${config.batch.branchPrefix}tracker-${slug(batch.group)}-${day}`
   let branch = stem
   for (let n = 2; branchExists(branch); n++) branch = `${stem}-${n}`
   const parent = path.join(root, STATE_DIR, 'worktrees')
@@ -1020,7 +1074,7 @@ function prBody(record, outcomes) {
 function batchFinish() {
   const [run, id] = positional(1)
   const dir = runDir(run)
-  const { file } = batchOf(dir, id)
+  const { plan, file } = batchOf(dir, id)
   const record = readIfExists(file)
   if (!record) fail(t('batchNotStarted', { id, run }))
   const state = readState(root)
@@ -1053,6 +1107,7 @@ function batchFinish() {
     const url = gh(argv, { cwd: root, input: prBody(record, outcomes) }).trim()
     writeJson(file, { ...record, pr: url })
     console.log(`PR=${url}`)
+    if (plan.lot) finishLot(plan.lot, { url, branch: record.branch })
   }
 }
 
@@ -1060,6 +1115,488 @@ function cmdBatch() {
   const sub = { plan: batchPlan, start: batchStart, checks: batchChecks, status: batchStatus, finish: batchFinish }[args[0]]
   if (!sub) fail(t('usage', { syntax: 'batch plan|start|checks|status|finish …' }), 2)
   sub()
+}
+
+// ─── plan ───────────────────────────────────────────────────────────────────
+
+const planDir = () => abs(config.plan.dir)
+const rel = (file) => toPosix(path.relative(root, file))
+const planName = (file) => path.basename(file, '.json')
+
+/** The plans of the plan directory, oldest first by creation date. */
+function listPlans() {
+  const dir = planDir()
+  if (!existsSync(dir)) return []
+  const out = []
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    try {
+      const doc = readJson(path.join(dir, f))
+      if (doc.schema === PLAN_SCHEMA) out.push({ file: path.join(dir, f), created: doc.created ?? '' })
+    } catch {
+      // Not a plan.
+    }
+  }
+  return out.sort((a, b) => a.created.localeCompare(b.created)).map((p) => p.file)
+}
+
+/** Plans of the previous format, by name: what `plan import` converts. */
+function legacyPlans() {
+  const dir = planDir()
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => path.join(dir, f))
+    .filter((f) => {
+      try {
+        return readJson(f).schema === LEGACY_SCHEMA
+      } catch {
+        return false
+      }
+    })
+    .sort()
+}
+
+/** `--plan <file>`, else the newest plan of the plan directory. */
+function resolvePlan() {
+  const named = option('plan')
+  const file = named ? path.resolve(root, named) : (listPlans().at(-1) ?? legacyPlans().at(-1))
+  if (!file || !existsSync(file)) fail(t('planNone', { dir: config.plan.dir, cmd: 'plan draft' }), 2)
+  const doc = readJson(file)
+  if (doc.schema === LEGACY_SCHEMA) fail(t('planLegacy', { file: rel(file), cli: config.plan.cli }), 2)
+  if (doc.schema !== PLAN_SCHEMA) fail(t('planNotAPlan', { file: rel(file) }), 2)
+  return { file, plan: doc }
+}
+
+const instructionsNote = () => t('htmlInstructions', { files: config.plan.instructionFiles.join(', '), cli: config.plan.cli })
+
+/** Writes the plan's JSON and regenerates its HTML twin from it. */
+function savePlan(file, plan) {
+  writeJson(file, plan)
+  const html = renderHtml(plan, { t, code: i18n.code, name: planName(file), instructions: instructionsNote() })
+  writeFileSync(file.replace(/\.json$/, '.html'), html, 'utf8')
+}
+
+function printPlan(plan) {
+  for (const lot of plan.lots) {
+    const flags = [lot.done ? `✓ PR #${lot.done.pr.number} ${lot.done.pr.state}` : '', lot.awaitDeploy ? t('flagAwait') : '', lot.codeFix ? '' : t('flagNotCode')]
+      .filter(Boolean)
+      .join(' · ')
+    console.log(`${String(lot.id).padStart(3)} ${lot.title}${flags ? `  [${flags}]` : ''}`)
+    console.log(`      ${lot.issues.map((i) => `#${i.number}`).join(' ')}`)
+  }
+  if (plan.unassigned.length) console.log(t('planUnassigned', { list: plan.unassigned.map((u) => `#${u.number}`).join(' ') }))
+  for (const c of plan.conflicts) console.log(t('planConflict', { a: c.lots[0], b: c.lots[1], files: c.files.join(', ') }))
+}
+
+/** Every repository path cited in a body, in code spans; report anchors left out. */
+function filesIn(body) {
+  const out = new Set()
+  for (const m of String(body ?? '').matchAll(/`([^`\s#]+\/[^`\s#]+\.[A-Za-z0-9]+)(?::\d+(?:-\d+)?)?`/g)) out.add(m[1])
+  return [...out]
+}
+
+function repositoryName() {
+  try {
+    return JSON.parse(gh(['repo', 'view', '--json', 'nameWithOwner'], { cwd: root })).nameWithOwner
+  } catch {
+    return null
+  }
+}
+
+function planDraft() {
+  const issues = selectIssues(positional(1), Number(option('max', config.plan.max)))
+  if (!issues.length) fail(t('selectionNone'))
+  const run = `plan-${timestamp()}`
+  const dir = path.join(RUNS, run)
+  const repository = repositoryName()
+  const records = issues.map((issue) => {
+    const record = issueRecord(issue, { triage: true })
+    writeJson(path.join(dir, `issue-${issue.number}.json`), record)
+    const files = filesIn(issue.body)
+    const location = record.location?.replace(/:\d+(?:-\d+)?$/, '')
+    return {
+      number: issue.number,
+      title: issue.title,
+      url: repository ? `https://github.com/${repository}/issues/${issue.number}` : null,
+      priority: record.priority,
+      severity: record.severity,
+      axis: record.axis,
+      location: record.location,
+      files: location && !files.includes(location) ? [location, ...files] : files,
+      report: record.report,
+      labels: record.labels,
+    }
+  })
+  const suggestion = groupBatches(config, issues, { groupBy: 'axis', perBatch: config.plan.perLot, max: Infinity })
+  const draft = {
+    run,
+    created: new Date().toISOString(),
+    repository,
+    base: config.batch.base ?? currentBranch(),
+    commit: headCommit(),
+    language: i18n.englishName,
+    perLot: config.plan.perLot,
+    issues: records,
+    suggestion: suggestion.map((b) => ({ group: b.group, issues: b.issues.map((i) => i.number) })),
+  }
+  writeJson(path.join(dir, 'draft.json'), draft)
+  arm({ mode: 'plan', run, writeAllowed: [`${STATE_DIR}/runs/${run}/**`] })
+  console.log(`RUN=${run}`)
+  console.log(`DIR=${toPosix(dir)}`)
+  console.log(`BASE=${draft.base}`)
+  console.log(`ISSUES=${records.length}`)
+  console.log(`LANG=${i18n.englishName}`)
+  printAgent('planner', { model: option('model'), effort: option('effort') })
+  console.log(t('planDrafted', { n: records.length, run }))
+}
+
+function planWrite() {
+  const run = positional(1)[0]
+  const dir = runDir(run)
+  const draft = readJson(path.join(dir, 'draft.json'))
+  const proposalFile = path.join(dir, 'proposal.json')
+  // Whatever happens next, the planner is done: the working tree is writable again.
+  disarm(run)
+  if (!existsSync(proposalFile)) fail(t('planNoProposal', { file: toPosix(proposalFile) }))
+  const proposal = readJson(proposalFile)
+  const problems = validateProposal(proposal, draft.issues.map((i) => i.number))
+  if (problems.length) fail(t('planInvalid', { n: problems.length, list: problems.join('\n  ') }))
+  const plan = planFromProposal(proposal, draft)
+  const name = option('name') ?? fill(config.plan.name, dateTokens())
+  const { json } = planPaths(root, config.plan.dir, name)
+  printPlan(plan)
+  console.log(`TARGET=${rel(json)}`)
+  if (existsSync(json) && !flag('replace')) fail(t('planExists', { file: rel(json) }), 2)
+  if (!flag('apply')) return console.log(`\n${t('dryRun')}`)
+  savePlan(json, plan)
+  console.log(`PLAN=${rel(json)}`)
+  console.log(t('planWritten', { file: rel(json), lots: plan.lots.length }))
+}
+
+function planImport() {
+  const source = positional(1)[0]
+  if (!source) fail(t('usage', { syntax: 'plan import <file> [--name n] [--apply]' }), 2)
+  const file = path.resolve(root, source)
+  if (!existsSync(file)) fail(t('sourceNotFound', { source, runs: config.plan.dir }))
+  let plan
+  try {
+    plan = importLegacy(readJson(file))
+  } catch (e) {
+    fail(t('planImportFailed', { file: rel(file), error: e.message }))
+  }
+  // Converted in place by default: the legacy pair is what is being replaced.
+  const target = option('name') ? planPaths(root, config.plan.dir, option('name')).json : file
+  printPlan(plan)
+  console.log(`TARGET=${rel(target)}`)
+  if (!flag('apply')) return console.log(`\n${t('dryRun')}`)
+  savePlan(target, plan)
+  console.log(`PLAN=${rel(target)}`)
+  console.log(t('planWritten', { file: rel(target), lots: plan.lots.length }))
+}
+
+function cmdPlan() {
+  const sub = { draft: planDraft, write: planWrite, import: planImport }[args[0]]
+  if (!sub) fail(t('usage', { syntax: 'plan draft|write|import …' }), 2)
+  sub()
+}
+
+// ─── lot ────────────────────────────────────────────────────────────────────
+
+/** A synchronous pause: the script has no event loop worth keeping. */
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+const POLL_MS = 20_000
+
+function describeLock(lock) {
+  return t('lockHolder', {
+    lot: lock.lot,
+    agent: lock.agent,
+    since: String(lock.since ?? '?').slice(0, 16).replace('T', ' '),
+    branch: lock.branch ?? '—',
+  })
+}
+
+/**
+ * Takes the lock of a lot (`next`: the first free one) for `--agent`. Returns the plan and
+ * the lot once held; exits 75 when another lot is in progress and waiting gave up, 2 when
+ * the lot cannot be taken.
+ */
+function takeLot() {
+  const wanted = positional(1)[0]
+  const agent = option('agent')
+  if (!wanted || !agent) fail(t('usage', { syntax: `lot ${args[0]} <id|next> --agent <name> [--wait] [--timeout m]` }), 2)
+  const file = lockFile(root)
+  const minutes = Number(option('timeout', config.plan.waitMinutes))
+  const deadline = Date.now() + (Number.isFinite(minutes) ? minutes : 9) * 60_000
+  let announced = null
+  for (;;) {
+    const { file: planFile, plan } = resolvePlan()
+    const current = readLock(file)
+    let lot
+    if (wanted === 'next') {
+      // An agent that already holds a lot of this plan resumes it.
+      const own = current && current.agent === agent && !isStale(current, config.plan.staleHours) ? lotOf(plan, current.lot) : null
+      lot = own && !own.done ? own : nextLot(plan, { includeAwait: flag('include-await') })
+      if (!lot) {
+        console.log(t('lotNoneLeft', { file: rel(planFile) }))
+        console.log('LOT=none')
+        process.exit(0)
+      }
+    } else {
+      lot = lotOf(plan, wanted)
+      if (!lot) fail(t('lotNotFound', { id: wanted, file: rel(planFile) }), 2)
+      if (lot.done) fail(t('lotAlreadyDone', { id: lot.id, pr: lot.done.pr.number }), 2)
+    }
+    const r = tryLock(file, { lot: lot.id, agent, plan: rel(planFile), branch: currentBranch(), staleHours: config.plan.staleHours })
+    if (r.ok) {
+      if (r.taken) console.log(t('lockTakenStale', { holder: describeLock(r.taken) }))
+      console.log(t(r.renewed ? 'lockRenewed' : 'lockTaken', { holder: describeLock(r.lock) }))
+      console.log(`LOT=${lot.id}`)
+      console.log(`TITLE=${lot.title}`)
+      console.log(`ISSUES=${lot.issues.map((i) => i.number).join(',')}`)
+      console.log(`PLAN=${rel(planFile)}`)
+      console.log(`BASE=${plan.base ?? config.batch.base ?? currentBranch()}`)
+      if (lot.awaitDeploy) console.log(t('lotAwaitDeploy', { id: lot.id }))
+      if (!lot.codeFix) console.log(t('lotNotCode', { id: lot.id }))
+      return { planFile, plan, lot, agent }
+    }
+    const key = `${r.lock.lot}/${r.lock.agent}`
+    if (key !== announced) {
+      console.log(t('lockBusy', { holder: describeLock(r.lock) }))
+      announced = key
+    }
+    if (!flag('wait') || Date.now() + POLL_MS > deadline) {
+      const again = `${config.plan.cli} lot ${args[0]} ${wanted} --agent ${agent}${flag('wait') ? ' --wait' : ''}`
+      console.log(t('lockBusyRetry', { cmd: again }))
+      console.log('LOCK=busy')
+      process.exit(BUSY_EXIT)
+    }
+    sleep(POLL_MS)
+  }
+}
+
+function lotRelease() {
+  const [id] = positional(1)
+  const file = lockFile(root)
+  const current = readLock(file)
+  if (releaseLock(file, id ?? null, { force: flag('force') })) return console.log(t('lockReleased', { holder: describeLock(current) }))
+  if (!current) return console.log(t('lockFree'))
+  fail(t('lockNotReleased', { holder: describeLock(current) }))
+}
+
+function lotLock() {
+  const current = readLock(lockFile(root))
+  if (!current) {
+    console.log(t('lockFree'))
+    console.log('LOCK=free')
+    return
+  }
+  const stale = isStale(current, config.plan.staleHours)
+  console.log(t(stale ? 'lockStale' : 'lockHeld', { holder: describeLock(current), hours: config.plan.staleHours }))
+  console.log(`LOCK=${stale ? 'stale' : 'held'}`)
+  console.log(`LOT=${current.lot}`)
+}
+
+/** The lock, then a batch run holding that lot alone: `batch start` takes it from there. */
+function lotStart() {
+  const { planFile, plan, lot, agent } = takeLot()
+  const open = []
+  for (const i of lot.issues) {
+    const issue = JSON.parse(gh(['issue', 'view', String(i.number), '--json', ISSUE_FIELDS], { cwd: root }))
+    if (issue.state !== 'OPEN') console.log(t('skipClosed', { number: i.number }))
+    else open.push(issue)
+  }
+  if (!open.length) {
+    releaseLock(lockFile(root), lot.id)
+    fail(t('lotAllClosed', { id: lot.id, cli: config.plan.cli }))
+  }
+  const run = `batch-${timestamp()}`
+  const dir = path.join(RUNS, run)
+  for (const issue of open) writeJson(path.join(dir, `issue-${issue.number}.json`), issueRecord(issue, { triage: true }))
+  const base = plan.base ?? config.batch.base ?? currentBranch()
+  const fixer = fixerScope(option('fixer', config.batch.fixer))
+  const facets = new Map(lot.issues.map((i) => [i.number, i]))
+  writeJson(path.join(dir, 'plan.json'), {
+    run,
+    created: new Date().toISOString(),
+    base,
+    commit: headCommit(),
+    language: i18n.englishName,
+    fixer,
+    lot: { plan: rel(planFile), id: lot.id, title: lot.title, agent },
+    batches: [
+      {
+        id: 'B1',
+        group: lot.title,
+        issues: open.map((i) => ({ number: i.number, title: i.title, priority: facets.get(i.number)?.priority ?? null, location: locationIn(i.body) })),
+      },
+    ],
+  })
+  console.log(`RUN=${run}`)
+  console.log('BATCHES=B1')
+  console.log(`FIXER_SCOPE=${fixer}`)
+  console.log(`AGENTS=${fixer === 'batch' ? 1 : open.length}`)
+  console.log(t('lotStarted', { id: lot.id, run, n: open.length, base }))
+}
+
+const prNumberOf = (url) => Number(String(url ?? '').match(/\/pull\/(\d+)/)?.[1]) || null
+
+/** After `batch finish --pr`: the lot is marked with its pull request, the lock released. */
+function finishLot(ref, { url, branch }) {
+  const file = path.resolve(root, ref.plan)
+  if (!existsSync(file)) return console.log(t('lotPlanGone', { file: ref.plan }))
+  const number = prNumberOf(url)
+  if (!number) return console.log(t('lotNoPrNumber', { url }))
+  const plan = markLot(readJson(file), ref.id, { number, url, branch, state: config.batch.draft ? 'draft' : 'open', agent: ref.agent })
+  savePlan(file, plan)
+  if (releaseLock(lockFile(root), ref.id)) console.log(t('lockReleasedLot', { id: ref.id }))
+  console.log(`MARKED=${ref.id}`)
+  console.log(t('lotMarked', { id: ref.id, pr: number, file: ref.plan, done: plan.progress.done.length, n: plan.lots.length }))
+  console.log(t('lotCommitHint', { cli: config.plan.cli, base: plan.base ?? '?' }))
+}
+
+function lotMark() {
+  const [id] = positional(1)
+  const number = Number(String(option('pr') ?? '').replace('#', ''))
+  const state = option('state', 'draft')
+  if (!id || !number) fail(t('usage', { syntax: 'lot mark <id> --pr <n> [--state draft|open|merged|closed] [--branch b] [--url u]' }), 2)
+  const { file, plan } = resolvePlan()
+  const url = option('url') ?? (plan.repository ? `https://github.com/${plan.repository}/pull/${number}` : null)
+  let marked
+  try {
+    marked = markLot(plan, id, { number, url, branch: option('branch'), state })
+  } catch (e) {
+    fail(e.message, 2)
+  }
+  savePlan(file, marked)
+  if (releaseLock(lockFile(root), id)) console.log(t('lockReleasedLot', { id }))
+  console.log(`MARKED=${id}`)
+  console.log(t('lotMarked', { id, pr: number, file: rel(file), done: marked.progress.done.length, n: marked.lots.length }))
+}
+
+function lotCommit() {
+  const { file, plan } = resolvePlan()
+  const files = [rel(file), rel(file.replace(/\.json$/, '.html'))]
+  const branch = currentBranch()
+  // Marking every lot on its own fix branch makes each merge conflict with the next.
+  if (plan.base && branch !== plan.base) fail(t('lotCommitWrongBranch', { branch, base: plan.base, files: files.join(' ') }), 2)
+  try {
+    git(['add', '--', ...files], root)
+    if (!git(['diff', '--cached', '--name-only', '--', ...files], root).trim()) return console.log(t('lotCommitNothing'))
+    const done = plan.progress.done
+    const message = `${config.plan.commitPrefix}: ${t('lotCommitMessage', { name: planName(file), done: done.length, n: plan.lots.length })}`
+    execFileSync('git', ['commit', '-m', message, '--', ...files], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (e) {
+    fail(t('lotCommitFailed', { error: String(e.stderr || e.message).trim() }))
+  }
+  console.log(t('lotCommitted', { files: files.join(', '), branch }))
+}
+
+function lotStatus() {
+  const { file, plan } = resolvePlan()
+  const lock = readLock(lockFile(root))
+  const held = lock && !isStale(lock, config.plan.staleHours) ? lock : null
+  console.log(t('lotStatusHead', { file: rel(file), done: plan.progress.done.length, n: plan.lots.length }))
+  for (const lot of plan.lots) {
+    const state = lot.done
+      ? `✓ PR #${lot.done.pr.number} ${t(`prState_${lot.done.pr.state}`)}`
+      : held?.lot === lot.id
+        ? `▶ ${held.agent}`
+        : lot.awaitDeploy
+          ? `… ${t('flagAwait')}`
+          : '·'
+    console.log(`${String(lot.id).padStart(3)}  ${state.padEnd(28)} ${lot.title} (${lot.issues.length})`)
+  }
+  const next = nextLot(plan, { held: held?.lot })
+  console.log(`NEXT=${next?.id ?? 'none'}`)
+  console.log(`LOCK=${held ? `${held.lot}/${held.agent}` : 'free'}`)
+}
+
+function lotSync() {
+  const { file, plan } = resolvePlan()
+  let updated = plan
+  const changes = []
+  for (const lot of plan.lots.filter((l) => l.done && ['draft', 'open'].includes(l.done.pr.state))) {
+    let pr
+    try {
+      pr = JSON.parse(gh(['pr', 'view', String(lot.done.pr.number), '--json', 'state,isDraft'], { cwd: root }))
+    } catch (e) {
+      console.log(t('lotSyncUnreadable', { id: lot.id, pr: lot.done.pr.number, error: e.message }))
+      continue
+    }
+    const state = pr.state === 'MERGED' ? 'merged' : pr.state === 'CLOSED' ? 'closed' : pr.isDraft ? 'draft' : 'open'
+    if (state === lot.done.pr.state) continue
+    changes.push({ id: lot.id, from: lot.done.pr.state, to: state })
+    updated = markLot(updated, lot.id, { ...lot.done.pr, state, agent: lot.done.agent })
+  }
+  for (const c of changes) console.log(t('lotSyncChange', { id: c.id, from: t(`prState_${c.from}`), to: t(`prState_${c.to}`) }))
+  if (!changes.length) return console.log(t('lotSyncNone'))
+  if (!flag('apply')) return console.log(`\n${t('dryRun')}`)
+  savePlan(file, updated)
+  console.log(t('lotSynced', { n: changes.length, file: rel(file) }))
+}
+
+function cmdLot() {
+  const subs = { take: takeLot, release: lotRelease, lock: lotLock, start: lotStart, mark: lotMark, commit: lotCommit, status: lotStatus, sync: lotSync }
+  const sub = subs[args[0]]
+  if (!sub) fail(t('usage', { syntax: `lot ${Object.keys(subs).join('|')} …` }), 2)
+  sub()
+}
+
+// ─── instructions, vendor ───────────────────────────────────────────────────
+
+/** The protocol, written into every instruction file: any agent reads it before a lot. */
+function cmdInstructions() {
+  const block = instructionsBlock({ t, cli: config.plan.cli, dir: config.plan.dir, base: config.batch.base })
+  let changed = 0
+  for (const name of config.plan.instructionFiles) {
+    const file = abs(name)
+    if (!existsSync(file) && !flag('create')) {
+      console.log(`· ${t('instrMissing', { file: name })}`)
+      continue
+    }
+    const before = existsSync(file) ? readFileSync(file, 'utf8') : ''
+    const after = withBlock(before, block)
+    if (after === before) {
+      console.log(`✓ ${t('instrUpToDate', { file: name })}`)
+      continue
+    }
+    changed++
+    console.log(`↻ ${t('instrChanged', { file: name })}`)
+    if (flag('apply')) writeFileSync(file, after, 'utf8')
+  }
+  if (changed && !flag('apply')) console.log(`\n${block}\n\n${t('dryRun')}`)
+}
+
+const VENDOR_DIR = path.join(STATE_DIR, 'bin')
+
+/**
+ * A copy of the plugin's scripts and messages in the repository, so that an agent
+ * without the plugin — Codex, a shell — calls the same lock and the same marking.
+ */
+function cmdVendor() {
+  const target = abs(VENDOR_DIR)
+  const copies = [
+    ...readdirSync(path.join(PLUGIN_ROOT, 'scripts'))
+      .filter((f) => f.endsWith('.mjs'))
+      .map((f) => ['scripts', f]),
+    ...readdirSync(path.join(PLUGIN_ROOT, 'locales'))
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => ['locales', f]),
+    ['.claude-plugin', 'plugin.json'],
+  ]
+  for (const [dir, f] of copies) console.log(`  ${toPosix(path.join(VENDOR_DIR, dir, f))}`)
+  try {
+    git(['check-ignore', '-q', `${toPosix(VENDOR_DIR)}/scripts/tracker.mjs`], root)
+    console.log(t('vendorIgnored', { dir: toPosix(VENDOR_DIR) }))
+  } catch {
+    // Not ignored: it can be committed.
+  }
+  if (!flag('apply')) return console.log(`\n${t('dryRun')}`)
+  for (const [dir, f] of copies) {
+    mkdirSync(path.join(target, dir), { recursive: true })
+    copyFileSync(path.join(PLUGIN_ROOT, dir, f), path.join(target, dir, f))
+  }
+  console.log(t('vendorDone', { n: copies.length, dir: toPosix(VENDOR_DIR), cli: config.plan.cli }))
 }
 
 // ─── status, check ──────────────────────────────────────────────────────────
@@ -1210,6 +1747,9 @@ const NEEDS_REPO = {
   triage: (sub) => ({ commit: true, remote: sub === 'prepare' || sub === 'apply' }),
   // `batch finish --push|--pr` checks its remote itself, after the guard.
   batch: (sub) => ({ commit: true, remote: sub === 'plan' }),
+  plan: (sub) => ({ commit: true, remote: sub === 'draft' }),
+  // The lock needs git only: an agent without the GitHub CLI can still take a lot.
+  lot: (sub) => ({ remote: sub === 'start' || sub === 'sync' }),
 }
 
 const REPO_MESSAGES = { 'no-git': 'repoNoGit', none: 'repoNone', empty: 'repoEmpty', 'no-remote': 'repoNoRemote' }
@@ -1275,6 +1815,10 @@ const commands = {
   select: cmdSelect,
   triage: cmdTriage,
   batch: cmdBatch,
+  plan: cmdPlan,
+  lot: cmdLot,
+  instructions: cmdInstructions,
+  vendor: cmdVendor,
   status: cmdStatus,
   check: cmdCheck,
   language: cmdLanguage,

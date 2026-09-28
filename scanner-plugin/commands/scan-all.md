@@ -38,6 +38,13 @@ type's model and effort (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scanner.mjs" model
 order of magnitude of the cost — in mode `fix` or `review`, each fixed finding adds one
 agent.
 
+**Handing over to the tracker.** When the `tracker` plugin is installed (its commands
+`/tracker:open`, `/tracker:plan` are available), offer the next steps instead of fixing here:
+`/tracker:open <each RUN>` opens the GitHub issues the findings lack (deduplicated by
+fingerprint), then `/tracker:plan all` cuts the open issues into numbered lots that any
+agent fixes one at a time with `/tracker:lot next`. The scanner never writes to GitHub
+itself: only offer.
+
 ## Not a git repository yet
 
 Whenever a `scanner.mjs` command exits with code 3 and prints a `REPO=` line, this section

@@ -1,6 +1,6 @@
 ---
-description: Show or set the model and reasoning effort of the tracker's agents (triager, skeptic, fixer)
-argument-hint: '[triager|skeptic|fixer|all] [--model inherit|haiku|sonnet|opus|fable] [--effort inherit|low|medium|high|xhigh|max]'
+description: Show or set the model and reasoning effort of the tracker's agents (triager, skeptic, fixer, planner)
+argument-hint: '[triager|skeptic|fixer|planner|all] [--model inherit|haiku|sonnet|opus|fable] [--effort inherit|low|medium|high|xhigh|max]'
 allowed-tools: Bash(node:*)
 ---
 
