@@ -39,7 +39,7 @@ d'acceptation et n'est validé que s'il réussit.
   niveau et chaque détecteur.
 - [x] **S1-T4** `lib/state.mjs` : schéma 1, écritures atomiques, verrou avec
   expiration. Refs: SPECS § 4, ARCHITECTURE § 8.
-- [ ] **S1-T5** Point d'entrée `scripts/docflow.mjs` avec sortie `KEY=value`,
+- [x] **S1-T5** Point d'entrée `scripts/docflow.mjs` avec sortie `KEY=value`,
   codes de sortie, messages i18n, et le verbe `status`. Refs: SPECS § 5.
 - [ ] **S1-T6** Commandes `/docflow:status` et `/docflow:language` ;
   `locales/en.json` et ses trois traductions. Refs: PRD § 6.7.

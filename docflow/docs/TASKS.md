@@ -36,7 +36,7 @@ acceptance test and is validated only when it passes.
   Refs: SPECS § 3. *Done when* unit tests cover each level and each detector.
 - [x] **S1-T4** `lib/state.mjs`: schema 1, atomic writes, lock with expiry.
   Refs: SPECS § 4, ARCHITECTURE § 8.
-- [ ] **S1-T5** `scripts/docflow.mjs` entry with `KEY=value` output, exit codes,
+- [x] **S1-T5** `scripts/docflow.mjs` entry with `KEY=value` output, exit codes,
   i18n messages, and the `status` verb. Refs: SPECS § 5.
 - [ ] **S1-T6** `/docflow:status` and `/docflow:language` commands;
   `locales/en.json` and its three translations. Refs: PRD § 6.7.
