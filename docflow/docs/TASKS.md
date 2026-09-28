@@ -91,7 +91,7 @@ acceptance test and is validated only when it passes.
 
 - [x] **S4-T1** `lib/tasks.mjs`: parser, `next` unit, tick in twins, results,
   issue numbers. Refs: SPECS § 6. *Done when* golden-file tests pass.
-- [ ] **S4-T2** `lib/run.mjs`: base branch, branch naming, worktree or in
+- [x] **S4-T2** `lib/run.mjs`: base branch, branch naming, worktree or in
   place, checks with log tail, commit, push, draft pull request, restore.
   Refs: SPECS § 8, ARCHITECTURE § 5.3.
 - [ ] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
