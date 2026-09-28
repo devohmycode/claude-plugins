@@ -46,11 +46,12 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S1-T7** Harnais de test `tests/docflow/` avec dépôts temporaires et
   exécuteurs `git`/`gh` factices. Refs: ARCHITECTURE § 11.
 
-- [ ] **S1 acceptance** — Après installation locale du marketplace,
+- [x] **S1 acceptance** — Après installation locale du marketplace,
   `/docflow:status` sur un dépôt vide affiche chaque document comme `missing`
   et `NEXT=/docflow:prd` ; `node --test tests/docflow` et
   `sync-shared.mjs --check` passent ; les messages suivent
   `/docflow:language fr`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on an empty repository: /docflow:status printed the four documents as missing and NEXT=/docflow:prd; after /docflow:language fr the status message came in French; node --test tests/docflow/*.test.mjs 43/43, sync-shared.mjs --check and claude plugin validate pass.*
 
 ## S2 — Chaîne de documents
 

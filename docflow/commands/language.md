@@ -4,8 +4,8 @@ argument-hint: '[en|fr|es|de|default]'
 allowed-tools: Bash(node:*)
 ---
 
-Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/docflow.mjs" language $ARGUMENTS` and show its
-output.
+Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/docflow.mjs" language $ARGUMENTS` right away — the
+argument is the user's request, no confirmation is needed — and show its output.
 
 - Without argument it prints the current language (`LANGUAGE=`), where it comes from
   (`SOURCE=`) and the supported ones.

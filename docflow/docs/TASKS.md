@@ -43,10 +43,11 @@ acceptance test and is validated only when it passes.
 - [x] **S1-T7** Test harness `tests/docflow/` with temporary repositories and
   fake `git`/`gh` runners. Refs: ARCHITECTURE § 11.
 
-- [ ] **S1 acceptance** — After installing the marketplace locally,
+- [x] **S1 acceptance** — After installing the marketplace locally,
   `/docflow:status` on an empty repository prints every document as `missing`
   and `NEXT=/docflow:prd`; `node --test tests/docflow` and
   `sync-shared.mjs --check` pass; the messages follow `/docflow:language fr`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on an empty repository: /docflow:status printed the four documents as missing and NEXT=/docflow:prd; after /docflow:language fr the status message came in French; node --test tests/docflow/*.test.mjs 43/43, sync-shared.mjs --check and claude plugin validate pass.*
 
 ## S2 — Document chain
 

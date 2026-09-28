@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { userOption } from '../i18n.mjs'
+import { ensureDocflowDir } from './state.mjs'
 import { readJson, writeAtomic } from './util.mjs'
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -105,6 +106,7 @@ export function loadConfig(root, args = {}, { pluginDir = PLUGIN_ROOT, env = pro
 export function saveProjectOption(root, key, value) {
   const file = path.join(root, CONFIG_FILE)
   const own = readProjectConfig(root)
+  ensureDocflowDir(root)
   if (value == null) delete own[key]
   else own[key] = value
   writeAtomic(file, JSON.stringify(own, null, 2) + '\n')
