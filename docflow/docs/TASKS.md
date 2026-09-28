@@ -131,7 +131,7 @@ acceptance test and is validated only when it passes.
   commands, the flow, token tips.
 - [x] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
   `marketplace.json`, root README entry.
-- [ ] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
+- [x] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
   through `/docflow:do`.
 - [x] **S6-T4** Measure SPECS § 10 budgets and PRD § 11 token checks; record
   them.

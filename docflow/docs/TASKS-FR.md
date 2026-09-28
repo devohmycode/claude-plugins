@@ -141,7 +141,7 @@ d'acceptation et n'est validé que s'il réussit.
   options, commandes, le flux, astuces de tokens.
 - [x] **S6-T2** Publication 0.1.0 du marketplace : versions dans
   `plugin.json` et `marketplace.json`, entrée dans le README racine.
-- [ ] **S6-T3** Appliquer docflow à Taskbar Hub avec `--adopt` et faire
+- [x] **S6-T3** Appliquer docflow à Taskbar Hub avec `--adopt` et faire
   passer un sprint par `/docflow:do`.
 - [x] **S6-T4** Mesurer les budgets de SPECS § 10 et les checks de tokens de
   PRD § 11 ; les consigner.
