@@ -310,6 +310,15 @@ function requireGate(doc, statuses) {
   fail('gate', t('gate', { doc, prev, status: statuses[prev].status, command: `/docflow:${STAGE_OF[prev]}` }), EXIT.gate)
 }
 
+/** Rewrites the link lines of an English document for the configured translations. */
+function refreshEnglishLinks(doc) {
+  const file = docPath(root, doc)
+  const current = readText(file)
+  if (!current) return
+  const updated = refreshLinks(current.text, doc, 'en', config.values.doc_languages)
+  if (updated !== current.text) writeText(file, updated, current.eol)
+}
+
 /** What a stage reads before writing (PRD § 6.1, T-3): whole documents, sections, headings. */
 function inputsOf(doc, adopt) {
   const layout = adopt ? ['LAYOUT'] : []
@@ -330,11 +339,7 @@ function cmdStage() {
   if (flags.adopt && !state.adopt) changeState((s) => void (s.adopt = true))
   const langs = config.values.doc_languages
   const { created, file } = skeleton(root, doc, { langs, adopt })
-  if (!created) {
-    const current = readText(file)
-    const updated = refreshLinks(current.text, doc, 'en', langs)
-    if (updated !== current.text) writeText(file, updated, current.eol)
-  }
+  if (!created) refreshEnglishLinks(doc)
   const text = readText(file).text
   const status = created ? 'draft' : statuses[doc].status
   const todo = unfilled(text)
@@ -422,7 +427,8 @@ function cmdTranslate() {
     }
     const state = loadState()
     let total = 0
-    for (const doc of docs)
+    for (const doc of docs) {
+      refreshEnglishLinks(doc)
       for (const lang of langs) {
         const plan = planTwin(root, state, doc, lang)
         if (!plan) continue
@@ -432,6 +438,7 @@ function cmdTranslate() {
           `DOC=${doc} LANG=${lang} CHANGED=${plan.changed.join(',')} REMOVED=${plan.removed.join(',')}${files ? ` SOURCE=${files.source} TARGET=${files.target}` : ''}\n`
         )
       }
+    }
     out('TOTAL', total)
     const translator = agentOf(config.values, 'translator')
     out('AGENT', translator.type)

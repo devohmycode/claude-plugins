@@ -106,6 +106,18 @@ describe('translate', () => {
     assert.doesNotMatch(read(repo, 'docs/PRD-FR.md'), /## 8\./)
   })
 
+  it('adds the translation links to an approved document without making it a draft', () => {
+    const repo = makeRepo(ws, { name: 'links' })
+    docflow(ws, repo, ['stage', 'prd'])
+    write(repo, 'docs/PRD.md', read(repo, 'docs/PRD.md').replace(/<!-- docflow:todo[^>]*-->/g, 'Text.'))
+    assert.equal(docflow(ws, repo, ['approve', 'prd']).code, 0)
+    assert.doesNotMatch(read(repo, 'docs/PRD.md'), /French version/)
+    docflow(ws, repo, ['config', 'doc_languages', 'fr'])
+    docflow(ws, repo, ['translate', 'plan'])
+    assert.match(read(repo, 'docs/PRD.md'), /\nFrench version: \[PRD-FR\.md\]\(PRD-FR\.md\)\.\nChain: /)
+    assert.equal(docflow(ws, repo, ['status']).keys.DOC_PRD, 'approved')
+  })
+
   it('works per language and says when none is set', () => {
     const repo = makeRepo(ws, { name: 'none' })
     docflow(ws, repo, ['stage', 'prd'])
