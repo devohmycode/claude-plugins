@@ -62,7 +62,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S2-T3** Verbes `stage`, `section`, `check`, `approve` avec la barrière
   et l'obsolescence. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
 - [x] **S2-T4** `lib/claudemd.mjs` et le verbe `claude-md`. Refs: SPECS § 7.
-- [ ] **S2-T5** Commandes `prd` (avec l'entretien), `architecture`, `specs`,
+- [x] **S2-T5** Commandes `prd` (avec l'entretien), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
 - [x] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
   résumé de la structure par script, S1 de `TASKS.md` pré-coché.

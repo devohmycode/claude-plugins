@@ -58,7 +58,7 @@ acceptance test and is validated only when it passes.
 - [x] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
   staleness. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
 - [x] **S2-T4** `lib/claudemd.mjs` and the `claude-md` verb. Refs: SPECS § 7.
-- [ ] **S2-T5** Commands `prd` (with the interview), `architecture`, `specs`,
+- [x] **S2-T5** Commands `prd` (with the interview), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
 - [x] **S2-T6** Adopt mode for an existing code base (`--adopt`): layout
   summary by script, S1 of `TASKS.md` pre-ticked. Refs: PRD § 6.1 (D-5).
