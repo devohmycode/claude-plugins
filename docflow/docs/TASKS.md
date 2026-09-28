@@ -32,7 +32,7 @@ acceptance test and is validated only when it passes.
 - [x] **S1-T2** Run `node scripts/sync-shared.mjs`: shared copies, empty
   locales, `userConfig.language`. Add the other `userConfig` options.
   Refs: SPECS § 3. *Done when* `sync-shared.mjs --check` passes.
-- [ ] **S1-T3** `lib/config.mjs`: option precedence and checks detection.
+- [x] **S1-T3** `lib/config.mjs`: option precedence and checks detection.
   Refs: SPECS § 3. *Done when* unit tests cover each level and each detector.
 - [ ] **S1-T4** `lib/state.mjs`: schema 1, atomic writes, lock with expiry.
   Refs: SPECS § 4, ARCHITECTURE § 8.

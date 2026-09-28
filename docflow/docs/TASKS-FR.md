@@ -34,7 +34,7 @@ d'acceptation et n'est validé que s'il réussit.
 - [x] **S1-T2** Lancer `node scripts/sync-shared.mjs` : copies partagées,
   locales vides, `userConfig.language`. Ajouter les autres options de
   `userConfig`. Refs: SPECS § 3. *Done when* `sync-shared.mjs --check` passe.
-- [ ] **S1-T3** `lib/config.mjs` : préséance des options et détection des
+- [x] **S1-T3** `lib/config.mjs` : préséance des options et détection des
   checks. Refs: SPECS § 3. *Done when* les tests unitaires couvrent chaque
   niveau et chaque détecteur.
 - [ ] **S1-T4** `lib/state.mjs` : schéma 1, écritures atomiques, verrou avec
