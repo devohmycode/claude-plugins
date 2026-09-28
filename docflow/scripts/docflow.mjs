@@ -15,6 +15,7 @@
 //   language [code|default]                 show or set the per-project language
 //   config [key [value] | key --unset]      show the options, or set one per project
 //   repo plan | repo init [--commit] | repo github [--public]
+//   issues push | issues pull [--apply]    the GitHub issues mirror of TASKS.md
 //
 // Exit codes: 0 success · 1 nothing to do, a reported problem or a failed git step ·
 // 2 unknown document, section, task or sprint · 3 repository missing (REPO=) ·
@@ -51,7 +52,8 @@ import { currentBranch, defaultBranch, git, projectRoot } from './lib/git.mjs'
 import { layoutSummary } from './lib/layout.mjs'
 import { applyTwin, checkTwins, planTwin, writeSource } from './lib/translate.mjs'
 import { StateError, acquireLock, approve, markStale, readState, releaseLock, updateState } from './lib/state.mjs'
-import { isManual, nextUnit, parseTasks, progress, recordResult, setDone } from './lib/tasks.mjs'
+import { createIssue, ensureLabels, labelsFor, listIssues, pullPlan, pushPlan, updateIssue } from './lib/issues.mjs'
+import { isManual, nextUnit, parseTasks, progress, recordResult, setDone, setIssue } from './lib/tasks.mjs'
 import {
   branchName,
   commitAll,
@@ -888,6 +890,71 @@ function cmdDo() {
   verbs[sub]()
 }
 
+// ─── Issues mirror ──────────────────────────────────────────────────────────
+
+/** Human lines of a verb stay within the output budget (SPECS § 10). */
+const LIST_MAX = 12
+
+function sayList(entries, key) {
+  for (const e of entries.slice(0, LIST_MAX)) say(t(key, { id: e.item.id, number: e.issue.number }))
+  if (entries.length > LIST_MAX) say(t('checkMore', { n: entries.length - LIST_MAX }))
+}
+
+function cmdIssues() {
+  const [action] = rest
+  if (!['push', 'pull'].includes(action)) fail('usage', t('usage', { syntax: 'issues push | issues pull [--apply]' }), EXIT.unknown)
+  if (config.values.issues !== 'mirror') {
+    out('ISSUES', config.values.issues)
+    fail('issues-off', t('issuesOff'))
+  }
+  const state = loadState()
+  // TASKS.md is written in the main checkout: during a run it belongs to the run.
+  if (state.run) fail('run-active', t('issuesRunActive', { unit: state.run.unit, status: state.run.status }))
+  const parsed = readTasks(root)
+  if (!parsed) fail('missing', t('docMissing', { file: docRel('TASKS') }), EXIT.unknown)
+  const issues = gitStep(() => listIssues(root))
+  if (action === 'push') return issuesPush(parsed, issues)
+  issuesPull(parsed, issues)
+}
+
+function issuesPush(parsed, issues) {
+  const plan = pushPlan(parsed, issues)
+  const created = []
+  try {
+    const needed = [...plan.create.flatMap(labelsFor), ...plan.update.flatMap((u) => u.missing)]
+    if (needed.length) gitStep(() => ensureLabels(root, needed))
+    for (const item of plan.create) created.push({ id: item.id, number: gitStep(() => createIssue(root, root, item)) })
+    for (const u of plan.update) gitStep(() => updateIssue(root, root, u))
+  } finally {
+    // Even when gh stops half-way, the numbers of the issues already created are written.
+    const numbers = [...plan.numbers, ...created]
+    if (numbers.length) editTasks(root, (text) => numbers.reduce((acc, { id, number }) => setIssue(acc, id, number) ?? acc, text))
+  }
+  const numbered = plan.numbers.length + created.length
+  out('CREATED', created.map((c) => c.id))
+  out('UPDATED', plan.update.map((u) => u.item.id))
+  out('UNCHANGED', plan.unchanged.length)
+  out('NUMBERED', numbered)
+  say(t('issuesPushed', { created: created.length, updated: plan.update.length, unchanged: plan.unchanged.length }))
+  if (numbered) say(t('issuesNumbered', { n: numbered, file: docRel('TASKS') }))
+}
+
+function issuesPull(parsed, issues) {
+  const plan = pullPlan(parsed, issues)
+  out('CLOSED', plan.closed.map((c) => c.item.id))
+  out('REOPENED', plan.reopened.map((c) => c.item.id))
+  const apply = !!flags.apply && (plan.closed.length || plan.reopened.length)
+  if (apply) {
+    const ticks = [...plan.closed.map((c) => [c.item.id, true]), ...plan.reopened.map((c) => [c.item.id, false])]
+    editTasks(root, (text) => ticks.reduce((acc, [id, done]) => setDone(acc, id, done) ?? acc, text))
+  }
+  out('APPLIED', apply ? 1 : 0)
+  if (!plan.closed.length && !plan.reopened.length) return say(t('issuesInSync'))
+  sayList(plan.closed, 'issuesClosedOutside')
+  sayList(plan.reopened, 'issuesReopenedOutside')
+  say(apply ? t('issuesApplied', { file: docRel('TASKS') }) : t('issuesApplyHint'))
+}
+
 // ─── Dispatch ───────────────────────────────────────────────────────────────
 
 const VERBS = {
@@ -904,6 +971,7 @@ const VERBS = {
   language: cmdLanguage,
   config: cmdConfig,
   repo: cmdRepo,
+  issues: cmdIssues,
 }
 
 /** What each verb needs of the repository (SPECS § 5, exit 3). */
@@ -911,6 +979,7 @@ const NEEDS_REPO = {
   stage: () => ({}),
   // `do finish` checks its remote itself, after the unit is known to be complete.
   do: (sub) => ({ commit: true, remote: sub === 'start' }),
+  issues: () => ({ commit: true, remote: true }),
 }
 
 try {

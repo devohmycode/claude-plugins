@@ -120,11 +120,11 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S5 — Miroir des issues
 
-- [ ] **S5-T1** `lib/issues.mjs` et `issues push` : créer, mettre à jour, ne
+- [x] **S5-T1** `lib/issues.mjs` et `issues push` : créer, mettre à jour, ne
   jamais dupliquer ; commentaire de clé de suivi. Refs: SPECS § 8, PRD § 6.8.
 - [ ] **S5-T2** Numéros d'issue dans `TASKS.md` ; `Closes #` dans les draft
   pull requests. Refs: PRD § 6.8 (S-2).
-- [ ] **S5-T3** `issues pull` et `--apply`. Refs: PRD § 6.8 (S-3).
+- [x] **S5-T3** `issues pull` et `--apply`. Refs: PRD § 6.8 (S-3).
 - [ ] **S5-T4** Commande `/docflow:issues` avec les checks du dépôt et de
   GitHub. Refs: PRD § 6.7 (M-2).
 
