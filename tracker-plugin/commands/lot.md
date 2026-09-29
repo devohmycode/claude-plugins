@@ -27,8 +27,22 @@ comes from `/tracker:plan`; `--plan <file>` names one, else the newest of `plan.
 2. **The lock, before anything else**: `TRACKER lot start <id|next> --agent claude-code
    [--wait] [--fixer issue|batch|session]`.
    - Exit `75` (`LOCK=busy`): another agent is fixing another lot. Say who, and **change
-     nothing**. With `--wait`, the command already waited: run the **same command** again
-     until it exits `0`, or stop if the user prefers. Never release someone else's lock.
+     nothing**. If the user wants to wait, do not re-run the command by hand: watch the
+     lock in the background with the Monitor tool when it is available (`ToolSearch`
+     `select:Monitor`), a loop that prints only when the lock changes and ends when it is
+     no longer held:
+
+     ```bash
+     prev=""; while :; do s=$(TRACKER lot lock | grep -E '^(LOCK|LOT)=' | tr '\n' ' ')
+       [ "$s" != "$prev" ] && echo "$s"; prev=$s
+       case "$s" in *LOCK=held*) sleep 60 ;; *) break ;; esac; done
+     ```
+
+     Without Monitor, run `TRACKER lot start … --wait` in the background (Bash
+     `run_in_background`): its end wakes you up. Either way, once the lock is `free` or
+     `stale`, run the **same `lot start` command** again in the foreground — another agent
+     may have taken it first, and `75` then starts the wait over. Stop if the user prefers.
+     Never release someone else's lock.
    - Exit `2`: no such lot, or already done — relay the message. Stop.
    - `LOT=none`: nothing left to take (lots waiting for a deployment are skipped; say so).
      Stop.
