@@ -51,23 +51,24 @@ acceptance test and is validated only when it passes.
 
 ## S2 — Document chain
 
-- [ ] **S2-T1** Templates for the four documents in English, with required
+- [x] **S2-T1** Templates for the four documents in English, with required
   sections and link lines. Refs: SPECS § 2.
-- [ ] **S2-T2** `lib/docs.mjs`: skeleton, section index, `section`, links,
+- [x] **S2-T2** `lib/docs.mjs`: skeleton, section index, `section`, links,
   fingerprints, `check`. Refs: SPECS § 2, § 4.
-- [ ] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
+- [x] **S2-T3** Verbs `stage`, `section`, `check`, `approve` with the gate and
   staleness. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
-- [ ] **S2-T4** `lib/claudemd.mjs` and the `claude-md` verb. Refs: SPECS § 7.
-- [ ] **S2-T5** Commands `prd` (with the interview), `architecture`, `specs`,
+- [x] **S2-T4** `lib/claudemd.mjs` and the `claude-md` verb. Refs: SPECS § 7.
+- [x] **S2-T5** Commands `prd` (with the interview), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
-- [ ] **S2-T6** Adopt mode for an existing code base (`--adopt`): layout
+- [x] **S2-T6** Adopt mode for an existing code base (`--adopt`): layout
   summary by script, S1 of `TASKS.md` pre-ticked. Refs: PRD § 6.1 (D-5).
-- [ ] **S2-T7** `writer` agent. Refs: ARCHITECTURE § 6.
+- [x] **S2-T7** `writer` agent. Refs: ARCHITECTURE § 6.
 
-- [ ] **S2 acceptance** — On an empty repository, `/docflow:run` repeated with
+- [x] **S2 acceptance** — On an empty repository, `/docflow:run` repeated with
   approvals produces the four documents and the `CLAUDE.md` block; every
   document links to its neighbours; `/docflow:check` reports nothing; editing
   the approved PRD marks the others stale in `/docflow:status`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on an empty repository: five /docflow:run with approvals produced PRD, ARCHITECTURE, SPECS, TASKS (17 entries) and a 13-line CLAUDE.md block; each document links to the three others; docflow check reported ISSUES=0; after editing the approved PRD, status showed PRD draft and ARCHITECTURE, SPECS, TASKS stale.*
 
 ## S3 — Translations
 

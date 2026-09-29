@@ -1,0 +1,37 @@
+{
+  "titles": {
+    "PRD": "Product Requirements Document",
+    "ARCHITECTURE": "Technical design",
+    "SPECS": "Specifications",
+    "TASKS": "Tasks"
+  },
+  "status": "Status",
+  "date": "Date",
+  "draft": "Draft v0.1",
+  "twin": "{language} version: [{file}]({file}).",
+  "languages": { "fr": "French", "es": "Spanish", "de": "German" },
+  "chain": "Chain: {links}.",
+  "limits": ["budget", "limit"],
+  "required": {
+    "PRD": [
+      ["Vision"],
+      ["Problem"],
+      ["Goals and non-goals"],
+      ["Users"],
+      ["Functional requirements"],
+      ["Non-functional requirements"],
+      ["Acceptance criteria"],
+      ["Open questions", "Decisions"]
+    ],
+    "ARCHITECTURE": [
+      ["Principles", "Starting point"],
+      ["Overview"],
+      ["Layout", "Modules"],
+      ["Delivery plan"],
+      ["Testing"],
+      ["Decisions"]
+    ],
+    "TASKS": [["How to work on this file"]]
+  },
+  "deliveryPlan": ["Delivery plan"]
+}

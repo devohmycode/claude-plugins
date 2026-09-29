@@ -55,25 +55,26 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S2 — Chaîne de documents
 
-- [ ] **S2-T1** Gabarits des quatre documents en anglais, avec les sections
+- [x] **S2-T1** Gabarits des quatre documents en anglais, avec les sections
   requises et les lignes de lien. Refs: SPECS § 2.
-- [ ] **S2-T2** `lib/docs.mjs` : squelette, index des sections, `section`,
+- [x] **S2-T2** `lib/docs.mjs` : squelette, index des sections, `section`,
   liens, empreintes, `check`. Refs: SPECS § 2, § 4.
-- [ ] **S2-T3** Verbes `stage`, `section`, `check`, `approve` avec la barrière
+- [x] **S2-T3** Verbes `stage`, `section`, `check`, `approve` avec la barrière
   et l'obsolescence. Refs: SPECS § 5, PRD § 6.1 (D-3, D-4).
-- [ ] **S2-T4** `lib/claudemd.mjs` et le verbe `claude-md`. Refs: SPECS § 7.
-- [ ] **S2-T5** Commandes `prd` (avec l'entretien), `architecture`, `specs`,
+- [x] **S2-T4** `lib/claudemd.mjs` et le verbe `claude-md`. Refs: SPECS § 7.
+- [x] **S2-T5** Commandes `prd` (avec l'entretien), `architecture`, `specs`,
   `tasks`, `claude-md`, `approve`, `check`, `run`. Refs: ARCHITECTURE § 5.1–5.2.
-- [ ] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
+- [x] **S2-T6** Mode d'adoption pour une base de code existante (`--adopt`) :
   résumé de la structure par script, S1 de `TASKS.md` pré-coché.
   Refs: PRD § 6.1 (D-5).
-- [ ] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.
+- [x] **S2-T7** Agent `writer`. Refs: ARCHITECTURE § 6.
 
-- [ ] **S2 acceptance** — Sur un dépôt vide, `/docflow:run` répété avec les
+- [x] **S2 acceptance** — Sur un dépôt vide, `/docflow:run` répété avec les
   approbations produit les quatre documents et le bloc `CLAUDE.md` ; chaque
   document renvoie vers ses voisins ; `/docflow:check` ne signale rien ;
   modifier le PRD approuvé marque les autres comme obsolètes dans
   `/docflow:status`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on an empty repository: five /docflow:run with approvals produced PRD, ARCHITECTURE, SPECS, TASKS (17 entries) and a 13-line CLAUDE.md block; each document links to the three others; docflow check reported ISSUES=0; after editing the approved PRD, status showed PRD draft and ARCHITECTURE, SPECS, TASKS stale.*
 
 ## S3 — Traductions
 
