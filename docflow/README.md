@@ -78,7 +78,7 @@ committed), or as a command argument. An argument wins over the project, which w
 | `doc_languages` | twins to keep, e.g. `fr` or `fr,de` | none |
 | `unit` | `task`, `sprint` — what `/docflow:do next` takes | `sprint` |
 | `implementer` | `session`, `task` (a fresh agent per task), `sprint` (one agent per sprint) | `session` |
-| `worktree` | `on` (a separate checkout per run), `off` (your checkout switches branch) | `off` |
+| `worktree` | `true` (a separate checkout per run), `false` (your checkout switches branch); `on`/`off` still read | `false` |
 | `issues` | `off`, `mirror` | `off` |
 | `checks` | the command that tests the project; detected from `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, else asked once | detected |
 | `branch_prefix` | text ending with `/` | `docflow/` |

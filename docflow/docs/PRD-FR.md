@@ -200,7 +200,7 @@ Réglées dans `/config` (`userConfig`), remplaçables par projet dans
 | `unit` | `task`, `sprint` | `sprint` |
 | `implementer` | `task`, `sprint`, `session` | `session` |
 | `issues` | `off`, `mirror` | `off` |
-| `worktree` | `on`, `off` | `off` |
+| `worktree` | `true`, `false` | `false` |
 | `checks` | commande shell | détectée depuis le projet (`cargo`, `npm`, `pytest`…) |
 | `branch_prefix` | chaîne | `docflow/` |
 | `<étape>_model`, `<étape>_effort` | par étape : `writer`, `translator`, `implementer`, `acceptance` | `writer` inherit · `translator` haiku · `implementer` inherit · `acceptance` sonnet |

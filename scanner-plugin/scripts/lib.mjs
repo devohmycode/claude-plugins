@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createI18n, userOption } from './i18n.mjs'
+import { createI18n, parseBooleanOption, userOption } from './i18n.mjs'
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const STATE_DIR = '.scanner'
@@ -185,8 +185,7 @@ export function reportFormatFor(config) {
 /** Whether a reporter agent writes a summary: `reportNarrative`, the /config row, off. */
 export function narrativeFor(config) {
   if (typeof config.reportNarrative === 'boolean') return config.reportNarrative
-  const row = String(userOption(PLUGIN_ROOT, 'report_narrative') ?? '').trim().toLowerCase()
-  return ['on', 'true', 'yes'].includes(row)
+  return parseBooleanOption(userOption(PLUGIN_ROOT, 'report_narrative')) ?? false
 }
 
 /**

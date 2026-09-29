@@ -100,6 +100,21 @@ export function userOption(pluginDir, key, env = process.env) {
   }
 }
 
+/**
+ * A yes/no option, whatever its spelling: a JSON boolean (a `boolean` row of
+ * /config, a project config), or the strings `true`/`false` (the hook
+ * environment serializes it) and `on`/`off`, `yes`/`no`, `1`/`0` — the values
+ * the rows had while they were strings, still found in older settings.json.
+ * Undefined for anything else, so the caller's default applies.
+ */
+export function parseBooleanOption(value) {
+  if (typeof value === 'boolean') return value
+  const text = String(value ?? '').trim().toLowerCase()
+  if (['true', 'on', 'yes', '1'].includes(text)) return true
+  if (['false', 'off', 'no', '0'].includes(text)) return false
+  return undefined
+}
+
 /** Applies the precedence above. */
 export function pickLanguage(own, { env = process.env, pluginDir = null } = {}) {
   const candidates = [

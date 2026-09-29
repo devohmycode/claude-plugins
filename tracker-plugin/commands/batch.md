@@ -33,7 +33,7 @@ costs a whole agent for nothing.
       creates the branch from the base in a worktree under `.tracker/worktrees/` (the user's
       working tree does not move) and runs the project's setup commands there — or, with
       `IN_PLACE=yes` (`--in-place`, `batch.worktree: false`, or the **Batch worktree** row of
-      `/config` at `off`), creates the branch in the user's checkout, which must have no
+      `/config` at `false`), creates the branch in the user's checkout, which must have no
       uncommitted change to tracked files, with no worktree and no setup. It arms the guard:
       denied paths and commands, no commit on a protected branch, no push, no write to
       GitHub. Note `DIR=`, `BRANCH=`, `WORKTREE=`, `IN_PLACE=`, `ISSUES=`, `FIXER_SCOPE=`,

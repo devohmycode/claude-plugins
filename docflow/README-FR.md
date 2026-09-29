@@ -79,7 +79,7 @@ projet, qui l'emporte sur `/config`, qui l'emporte sur la valeur par défaut.
 | `doc_languages` | traductions à tenir, par exemple `fr` ou `fr,de` | aucune |
 | `unit` | `task`, `sprint` — ce que prend `/docflow:do next` | `sprint` |
 | `implementer` | `session`, `task` (un agent neuf par tâche), `sprint` (un agent par sprint) | `session` |
-| `worktree` | `on` (un checkout séparé par run), `off` (votre checkout change de branche) | `off` |
+| `worktree` | `true` (un checkout séparé par run), `false` (votre checkout change de branche) ; `on`/`off` restent lus | `false` |
 | `issues` | `off`, `mirror` | `off` |
 | `checks` | la commande qui teste le projet ; détectée depuis `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`, sinon demandée une fois | détectée |
 | `branch_prefix` | texte terminé par `/` | `docflow/` |

@@ -74,6 +74,14 @@ describe('option precedence', () => {
     assert.equal(sources.worktree, 'user')
   })
 
+  it('reads the boolean Worktree row, and its former on/off spelling', () => {
+    assert.equal(loadConfig(project(), {}, userSettings({ worktree: true })).values.worktree, 'on')
+    assert.equal(loadConfig(project(), {}, userSettings({ worktree: false })).values.worktree, 'off')
+    assert.equal(loadConfig(project(), {}, userSettings({ worktree: 'on' })).values.worktree, 'on')
+    const env = { pluginDir: null, env: { CLAUDE_PLUGIN_OPTION_WORKTREE: 'true' } }
+    assert.equal(loadConfig(project(), {}, env).values.worktree, 'on')
+  })
+
   it('prefers the project file to /config', () => {
     const user = userSettings({ unit: 'task' })
     const { values, sources } = loadConfig(project({ unit: 'sprint', doc_languages: ['es'] }), {}, user)
