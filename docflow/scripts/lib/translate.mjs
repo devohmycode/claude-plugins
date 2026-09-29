@@ -4,7 +4,7 @@
 // are sent to the translator, then spliced into the twin by id. The twin's preamble (title,
 // table, link lines) is the script's, in the twin's language.
 
-import { existsSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { chunks, docPath, docRel, links, preamble, preambleOf, projectName, refreshLinks, sectionFingerprints } from './docs.mjs'
 import { readText, writeText } from './util.mjs'
@@ -41,7 +41,10 @@ export function writeSource(root, doc, lang, plan) {
   const wanted = new Set(plan.changed)
   const body = plan.enChunks.filter((c) => wanted.has(c.id)).map((c) => `${marker(c.id)}\n${c.text}`).join('\n\n')
   writeText(path.join(root, rel), `${body}\n`)
-  return { source: rel, target: `${WORK_DIR}/${doc}.${lang}.md` }
+  // A target left by an earlier pass would be read back by the translator and applied whole.
+  const target = `${WORK_DIR}/${doc}.${lang}.md`
+  rmSync(path.join(root, target), { force: true })
+  return { source: rel, target }
 }
 
 /** The chunks of a translated file, by id (markers removed). */
@@ -94,7 +97,7 @@ export function applyTwin(root, state, doc, lang, translatedText, { now = Date.n
   const missing = []
   const invalid = []
   for (const c of plan.enChunks) {
-    if (translated.has(c.id)) {
+    if (translated.has(c.id) && plan.changed.includes(c.id)) {
       const text = translated.get(c.id)
       if (!sameHeading(c.text, text)) invalid.push(c.id)
       body.push(rewriteLinks(text, lang))
