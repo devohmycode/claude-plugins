@@ -18,5 +18,7 @@ jobs:
         run: node scanner-plugin/scripts/generate.mjs --check
       - name: Tracker agent variants and /config rows
         run: node tracker-plugin/scripts/generate.mjs --check
-      - name: Tests (shared modules, tracker)
+      - name: docflow agent variants and /config rows
+        run: node docflow/scripts/generate.mjs --check
+      - name: Tests (shared modules, tracker, docflow)
         run: node --test tests/*/*.test.mjs

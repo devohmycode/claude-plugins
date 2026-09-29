@@ -1,0 +1,205 @@
+{
+  "name": "docflow",
+  "version": "0.1.0",
+  "description": "From an idea to merged code through a fixed chain of linked documents — PRD, architecture, specifications, tasks and a CLAUDE.md block — each written by one command and approved at a checkpoint, optionally translated section by section; then the plan is implemented task by task or sprint by sprint, on its own branch, with the project's checks, a ticked TASKS.md and a draft pull request. Scripts do the mechanical work; the model only writes.",
+  "author": {
+    "name": "DevOhMyCode",
+    "url": "https://github.com/devohmycode"
+  },
+  "homepage": "https://github.com/devohmycode/claude-plugins/tree/main/docflow",
+  "repository": "https://github.com/devohmycode/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "prd",
+    "architecture",
+    "specifications",
+    "tasks",
+    "documentation",
+    "planning",
+    "sprint",
+    "implementation",
+    "translation",
+    "claude-md"
+  ],
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the plugin: en (English), fr (Français), es (Español), de (Deutsch).",
+      "options": [
+        "en",
+        "fr",
+        "es",
+        "de"
+      ],
+      "default": "en"
+    },
+    "doc_languages": {
+      "type": "string",
+      "title": "Document translations",
+      "description": "Translations written next to each English document, comma-separated: fr, es, de (docs/PRD-FR.md…). Empty: none. Only changed sections are translated again.",
+      "default": ""
+    },
+    "unit": {
+      "type": "string",
+      "title": "Unit of work",
+      "description": "What /docflow:do next takes: sprint (every task of the current sprint, then its acceptance test, on one branch) or task (the first unticked task).",
+      "options": [
+        "task",
+        "sprint"
+      ],
+      "default": "sprint"
+    },
+    "implementer": {
+      "type": "string",
+      "title": "Implementer",
+      "description": "Who writes the code: session (the current session — fewest tokens, the code read stays loaded), task (one fresh agent per task) or sprint (one agent per sprint).",
+      "options": [
+        "task",
+        "sprint",
+        "session"
+      ],
+      "default": "session"
+    },
+    "worktree": {
+      "type": "string",
+      "title": "Worktree",
+      "description": "on: each run gets its own worktree next to the repository, your checkout does not move. off: the branch is created in your checkout (tracked files clean), which goes back to its branch after the pull request.",
+      "options": [
+        "on",
+        "off"
+      ],
+      "default": "off"
+    },
+    "issues": {
+      "type": "string",
+      "title": "GitHub issues",
+      "description": "mirror: /docflow:issues push mirrors each unticked task as a GitHub issue (deduplicated, readable by the tracker plugin) and pull requests close them. off: TASKS.md only.",
+      "options": [
+        "off",
+        "mirror"
+      ],
+      "default": "off"
+    },
+    "checks": {
+      "type": "string",
+      "title": "Checks command",
+      "description": "Shell command that must pass after each task (cargo test --locked, npm test…). Empty: detected from the project (Cargo.toml, package.json, pyproject.toml, go.mod), else asked once.",
+      "default": ""
+    },
+    "branch_prefix": {
+      "type": "string",
+      "title": "Branch prefix",
+      "description": "Prefix of the run branches, ending with / (docflow/S2-placement).",
+      "default": "docflow/"
+    },
+    "writer_model": {
+      "type": "string",
+      "title": "Model — writer",
+      "description": "Model of the writer agent: inherit (the session's model), haiku, sonnet, opus or fable. Default: inherit.",
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
+      "default": "inherit"
+    },
+    "writer_effort": {
+      "type": "string",
+      "title": "Effort — writer",
+      "description": "Reasoning effort of the writer agent: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "inherit"
+    },
+    "translator_model": {
+      "type": "string",
+      "title": "Model — translator",
+      "description": "Model of the translator agent: inherit (the session's model), haiku, sonnet, opus or fable. Default: haiku.",
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
+      "default": "haiku"
+    },
+    "translator_effort": {
+      "type": "string",
+      "title": "Effort — translator",
+      "description": "Reasoning effort of the translator agent: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "inherit"
+    },
+    "implementer_model": {
+      "type": "string",
+      "title": "Model — implementer",
+      "description": "Model of the implementer agent: inherit (the session's model), haiku, sonnet, opus or fable. Default: inherit.",
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
+      "default": "inherit"
+    },
+    "implementer_effort": {
+      "type": "string",
+      "title": "Effort — implementer",
+      "description": "Reasoning effort of the implementer agent: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "inherit"
+    },
+    "acceptance_model": {
+      "type": "string",
+      "title": "Model — acceptance",
+      "description": "Model of the acceptance agent: inherit (the session's model), haiku, sonnet, opus or fable. Default: sonnet.",
+      "options": [
+        "inherit",
+        "haiku",
+        "sonnet",
+        "opus",
+        "fable"
+      ],
+      "default": "sonnet"
+    },
+    "acceptance_effort": {
+      "type": "string",
+      "title": "Effort — acceptance",
+      "description": "Reasoning effort of the acceptance agent: inherit (the session's effort), low, medium, high, xhigh or max. Default: inherit.",
+      "options": [
+        "inherit",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "inherit"
+    }
+  }
+}
