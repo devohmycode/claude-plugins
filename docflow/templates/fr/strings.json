@@ -1,0 +1,13 @@
+{
+  "titles": {
+    "PRD": "Document d'exigences produit",
+    "ARCHITECTURE": "Conception technique",
+    "SPECS": "Spécifications",
+    "TASKS": "Tâches"
+  },
+  "status": "Statut",
+  "date": "Date",
+  "draft": "Brouillon v0.1",
+  "twin": "Version anglaise : [{file}]({file}).",
+  "chain": "Chaîne : {links}."
+}

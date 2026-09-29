@@ -1,0 +1,13 @@
+{
+  "titles": {
+    "PRD": "Documento de requisitos del producto",
+    "ARCHITECTURE": "Diseño técnico",
+    "SPECS": "Especificaciones",
+    "TASKS": "Tareas"
+  },
+  "status": "Estado",
+  "date": "Fecha",
+  "draft": "Borrador v0.1",
+  "twin": "Versión en inglés: [{file}]({file}).",
+  "chain": "Cadena: {links}."
+}

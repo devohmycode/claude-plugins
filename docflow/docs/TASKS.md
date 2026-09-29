@@ -72,19 +72,20 @@ acceptance test and is validated only when it passes.
 
 ## S3 — Translations
 
-- [ ] **S3-T1** Section fingerprints per twin in the state; `translate plan`.
+- [x] **S3-T1** Section fingerprints per twin in the state; `translate plan`.
   Refs: SPECS § 4, PRD § 6.2.
-- [ ] **S3-T2** `translate apply`: splice sections, rewrite link lines, record
+- [x] **S3-T2** `translate apply`: splice sections, rewrite link lines, record
   fingerprints. Refs: SPECS § 2, § 5.
-- [ ] **S3-T3** Templates in French, Spanish and German. Refs: SPECS § 2.
-- [ ] **S3-T4** `translator` agent and `/docflow:translate`; identifiers, code
+- [x] **S3-T3** Templates in French, Spanish and German. Refs: SPECS § 2.
+- [x] **S3-T4** `translator` agent and `/docflow:translate`; identifiers, code
   and paths untouched. Refs: ARCHITECTURE § 5.4, § 6.
-- [ ] **S3-T5** `check` covers twins: missing, extra or outdated sections.
+- [x] **S3-T5** `check` covers twins: missing, extra or outdated sections.
   Refs: PRD § 6.2 (L-4).
 
-- [ ] **S3 acceptance** — With `doc_languages: fr`, the chain of S2 produces
+- [x] **S3 acceptance** — With `doc_languages: fr`, the chain of S2 produces
   French twins; changing one English section and running `/docflow:translate`
   sends only that section; `/docflow:check` reports nothing afterwards.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on the S2 acceptance project with doc_languages fr: /docflow:translate wrote PRD-FR, ARCHITECTURE-FR, SPECS-FR and TASKS-FR through haiku translator agents (ids, grammar and paths kept); after one sentence was added to SPECS § 3, /docflow:translate specs sent a source file holding that section only; docflow check reported ISSUES=0 before and after.*
 
 ## S4 — Implementation engine
 

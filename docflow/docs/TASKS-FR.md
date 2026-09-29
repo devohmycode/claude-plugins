@@ -78,20 +78,21 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S3 — Traductions
 
-- [ ] **S3-T1** Empreintes de section par jumeau dans l'état ; `translate
+- [x] **S3-T1** Empreintes de section par jumeau dans l'état ; `translate
   plan`. Refs: SPECS § 4, PRD § 6.2.
-- [ ] **S3-T2** `translate apply` : fusionner les sections, réécrire les
+- [x] **S3-T2** `translate apply` : fusionner les sections, réécrire les
   lignes de lien, enregistrer les empreintes. Refs: SPECS § 2, § 5.
-- [ ] **S3-T3** Gabarits en français, espagnol et allemand. Refs: SPECS § 2.
-- [ ] **S3-T4** Agent `translator` et `/docflow:translate` ; identifiants,
+- [x] **S3-T3** Gabarits en français, espagnol et allemand. Refs: SPECS § 2.
+- [x] **S3-T4** Agent `translator` et `/docflow:translate` ; identifiants,
   code et chemins non modifiés. Refs: ARCHITECTURE § 5.4, § 6.
-- [ ] **S3-T5** `check` couvre les jumeaux : sections manquantes, en trop ou
+- [x] **S3-T5** `check` couvre les jumeaux : sections manquantes, en trop ou
   obsolètes. Refs: PRD § 6.2 (L-4).
 
-- [ ] **S3 acceptance** — Avec `doc_languages: fr`, la chaîne de S2 produit
+- [x] **S3 acceptance** — Avec `doc_languages: fr`, la chaîne de S2 produit
   les jumeaux français ; modifier une section anglaise puis lancer
   `/docflow:translate` n'envoie que cette section ; `/docflow:check` ne
   signale plus rien ensuite.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow on the S2 acceptance project with doc_languages fr: /docflow:translate wrote PRD-FR, ARCHITECTURE-FR, SPECS-FR and TASKS-FR through haiku translator agents (ids, grammar and paths kept); after one sentence was added to SPECS § 3, /docflow:translate specs sent a source file holding that section only; docflow check reported ISSUES=0 before and after.*
 
 ## S4 — Moteur de mise en œuvre
 

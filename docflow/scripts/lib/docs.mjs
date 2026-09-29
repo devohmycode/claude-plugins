@@ -63,7 +63,16 @@ export function neutralTasks(text) {
     .join('\n')
 }
 
-export const docFingerprint = (doc, text) => fingerprint(doc === 'TASKS' ? neutralTasks(text) : text)
+/**
+ * The fingerprint of a document: its sections, from the first heading on. The preamble —
+ * title table and link lines, which the script rewrites when translations are added — is
+ * not an edit of the document.
+ */
+export function docFingerprint(doc, text) {
+  const { lines, preambleEnd } = indexSections(text)
+  const body = lines.slice(preambleEnd).join('\n')
+  return fingerprint(doc === 'TASKS' ? neutralTasks(body) : body)
+}
 
 // ─── Section index ──────────────────────────────────────────────────────────
 
