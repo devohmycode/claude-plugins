@@ -29,6 +29,7 @@
   "unknownSection": "{doc} has no section {ref}.",
   "gate": "{doc} cannot start: {prev} is {status}, and it must be approved first. {command} completes it.",
   "stageCreated": "Skeleton written: {file}, {n} section(s) to fill.",
+  "stageTwinsAdopted": "{list}: written before docflow, taken as translated from the current English text; /docflow:translate sends only the sections changed from now on.",
   "stageResume": "{file} exists: {n} section(s) still to fill.",
   "stageFilled": "{file} is filled: check it, then /docflow:approve {doc}.",
   "stageStale": "{doc} is stale: revise it against the changed sections (CHANGED), then approve it again.",

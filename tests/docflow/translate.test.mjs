@@ -118,6 +118,21 @@ describe('translate', () => {
     assert.equal(docflow(ws, repo, ['status']).keys.DOC_PRD, 'approved')
   })
 
+  it('adopts a twin written before docflow instead of reporting every section outdated', () => {
+    const repo = prdRepo('adopt-twin')
+    // A hand-written twin: same sections, other words, nothing recorded in the state.
+    const en = read(repo, 'docs/PRD.md')
+    write(repo, 'docs/PRD-FR.md', en.split('\n').map((l) => (l.startsWith('#') || !l.trim() ? l : `FR ${l}`)).join('\n'))
+    assert.equal(docflow(ws, repo, ['check', 'prd']).keys.ISSUES, '8')
+    const stage = docflow(ws, repo, ['stage', 'prd', '--adopt'])
+    assert.equal(stage.keys.TWINS_ADOPTED, 'fr', stage.stdout)
+    assert.equal(docflow(ws, repo, ['check', 'prd']).keys.ISSUES, '0')
+    assert.equal(docflow(ws, repo, ['stage', 'prd', '--adopt']).keys.TWINS_ADOPTED, undefined)
+    write(repo, 'docs/PRD.md', en.replace(/(## 2\.[^\n]*\n\n)/, '$1One more sentence.\n'))
+    const [line] = planLines(docflow(ws, repo, ['translate', 'plan', 'prd']).stdout)
+    assert.equal(line.CHANGED, '2')
+  })
+
   it('works per language and says when none is set', () => {
     const repo = makeRepo(ws, { name: 'none' })
     docflow(ws, repo, ['stage', 'prd'])

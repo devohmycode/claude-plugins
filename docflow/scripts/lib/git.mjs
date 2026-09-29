@@ -2,6 +2,7 @@
 // command line, e.g. `node fake-gh.mjs`): pull requests and issues are then faked.
 
 import { spawnSync } from 'node:child_process'
+import { readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 export class CommandError extends Error {
@@ -61,6 +62,57 @@ export function projectRoot(cwd) {
     if (path.resolve(main) !== path.resolve(top)) return path.resolve(main)
   }
   return path.resolve(top)
+}
+
+/**
+ * The checkout `cwd` is in, read from the file system: its top, its git directory and the
+ * common one (the main checkout's `.git` for a linked worktree), or null.
+ */
+export function gitLayout(cwd) {
+  let dir = path.resolve(cwd)
+  for (;;) {
+    const dotgit = path.join(dir, '.git')
+    let stat = null
+    try {
+      stat = statSync(dotgit)
+    } catch {}
+    if (stat?.isDirectory()) return { top: dir, gitDir: dotgit, commonDir: dotgit }
+    if (stat?.isFile()) {
+      const m = /^gitdir:\s*(.+)$/m.exec(readFileSync(dotgit, 'utf8'))
+      if (!m) return null
+      const gitDir = path.resolve(dir, m[1].trim())
+      let commonDir = gitDir
+      try {
+        commonDir = path.resolve(gitDir, readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim())
+      } catch {}
+      return { top: dir, gitDir, commonDir }
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+// The hook decides within 100 ms (SPECS § 10) and a git process costs a third of that:
+// it reads the layout from the file system, and falls back on git when it is unusual.
+
+/** `projectRoot` without starting git. */
+export function fastProjectRoot(cwd) {
+  const layout = gitLayout(cwd)
+  if (layout && path.basename(layout.commonDir) === '.git') return path.dirname(layout.commonDir)
+  return projectRoot(cwd)
+}
+
+/** `currentBranch` without starting git. */
+export function fastCurrentBranch(cwd) {
+  const layout = gitLayout(cwd)
+  if (!layout) return currentBranch(cwd)
+  try {
+    const m = /^ref: refs\/heads\/(.+)$/.exec(readFileSync(path.join(layout.gitDir, 'HEAD'), 'utf8').trim())
+    return m ? m[1] : null
+  } catch {
+    return currentBranch(cwd)
+  }
 }
 
 /** The current branch, or null (detached, or not a repository). */

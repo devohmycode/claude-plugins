@@ -29,6 +29,7 @@
   "unknownSection": "{doc} hat keinen Abschnitt {ref}.",
   "gate": "{doc} kann nicht beginnen: {prev} ist im Zustand {status} und muss zuerst freigegeben werden. {command} vervollständigt es.",
   "stageCreated": "Gerüst geschrieben: {file}, {n} Abschnitt(e) auszufüllen.",
+  "stageTwinsAdopted": "{list}: vor docflow geschrieben, gilt als Übersetzung des aktuellen englischen Textes; /docflow:translate sendet ab jetzt nur geänderte Abschnitte.",
   "stageResume": "{file} existiert: {n} Abschnitt(e) noch auszufüllen.",
   "stageFilled": "{file} ist ausgefüllt: prüfen Sie es, dann /docflow:approve {doc}.",
   "stageStale": "{doc} ist veraltet: Überarbeiten Sie es anhand der geänderten Abschnitte (CHANGED) und geben Sie es erneut frei.",

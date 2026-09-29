@@ -29,6 +29,7 @@
   "unknownSection": "{doc} n'a pas de section {ref}.",
   "gate": "{doc} ne peut pas commencer : {prev} est à l'état {status}, et il doit d'abord être approuvé. {command} le complète.",
   "stageCreated": "Squelette écrit : {file}, {n} section(s) à remplir.",
+  "stageTwinsAdopted": "{list} : écrite avant docflow, tenue pour traduite du texte anglais actuel ; /docflow:translate n'enverra que les sections modifiées désormais.",
   "stageResume": "{file} existe : {n} section(s) restent à remplir.",
   "stageFilled": "{file} est rempli : vérifiez-le, puis /docflow:approve {doc}.",
   "stageStale": "{doc} est périmé : révisez-le au regard des sections modifiées (CHANGED), puis approuvez-le de nouveau.",

@@ -50,7 +50,7 @@ import {
 } from './lib/docs.mjs'
 import { currentBranch, defaultBranch, git, projectRoot } from './lib/git.mjs'
 import { layoutSummary } from './lib/layout.mjs'
-import { applyTwin, checkTwins, planTwin, writeSource } from './lib/translate.mjs'
+import { adoptTwin, applyTwin, checkTwins, planTwin, writeSource } from './lib/translate.mjs'
 import { StateError, acquireLock, approve, markStale, readState, releaseLock, updateState } from './lib/state.mjs'
 import { createIssue, ensureLabels, labelsFor, listIssues, pullPlan, pushPlan, updateIssue } from './lib/issues.mjs'
 import { isManual, nextUnit, parseTasks, progress, recordResult, setDone, setIssue } from './lib/tasks.mjs'
@@ -378,6 +378,7 @@ function cmdStage() {
   const langs = config.values.doc_languages
   const { created, file } = skeleton(root, doc, { langs, adopt })
   if (!created) refreshEnglishLinks(doc)
+  const adopted = adopt && !created ? changeState((s) => langs.filter((lang) => adoptTwin(root, s, doc, lang))) : []
   const text = readText(file).text
   const status = created ? 'draft' : statuses[doc].status
   const todo = unfilled(text)
@@ -389,6 +390,7 @@ function cmdStage() {
   if (status === 'stale') out('CHANGED', changedSince(root, doc, state.docs[doc]))
   out('LANGS', langs)
   out('ADOPT', adopt ? 1 : 0)
+  if (adopted.length) out('TWINS_ADOPTED', adopted)
   const writer = agentOf(config.values, 'writer')
   const agent = !!flags.agent || writer.model !== 'inherit' || writer.effort !== 'inherit'
   out('WRITER', agent ? 'agent' : 'session')
@@ -396,6 +398,7 @@ function cmdStage() {
     out('AGENT', writer.type)
     out('MODEL', writer.model)
   }
+  if (adopted.length) say(t('stageTwinsAdopted', { list: adopted.map((l) => docRel(doc, l)).join(', ') }))
   if (created) say(t('stageCreated', { file: docRel(doc), n: todo.length }))
   else if (status === 'stale') say(t('stageStale', { doc }))
   else say(todo.length ? t('stageResume', { file: docRel(doc), n: todo.length }) : t('stageFilled', { file: docRel(doc), doc: STAGE_OF[doc] }))

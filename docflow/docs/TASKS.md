@@ -127,15 +127,16 @@ acceptance test and is validated only when it passes.
 
 ## S6 — Documentation and dogfooding
 
-- [ ] **S6-T1** `docflow/README.md` (and `README-FR.md`): install, options,
+- [x] **S6-T1** `docflow/README.md` (and `README-FR.md`): install, options,
   commands, the flow, token tips.
-- [ ] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
+- [x] **S6-T2** Marketplace release 0.1.0: versions in `plugin.json` and
   `marketplace.json`, root README entry.
-- [ ] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
+- [x] **S6-T3** Apply docflow to Taskbar Hub with `--adopt` and run one sprint
   through `/docflow:do`.
-- [ ] **S6-T4** Measure SPECS § 10 budgets and PRD § 11 token checks; record
+- [x] **S6-T4** Measure SPECS § 10 budgets and PRD § 11 token checks; record
   them.
 
 - [ ] **S6 acceptance** — Every PRD § 11 acceptance criterion passes on a fresh
   install from the marketplace; the Taskbar Hub sprint produced a draft pull
   request with ticked tasks and no manual edit of `TASKS.md`.
+  *Result (2026-09-28): failed — not every part holds yet. Passed: the README, the 0.1.0 entry, the budgets of SPECS § 10 (measured and tested), and on Taskbar Hub an adopted chain and a draft pull request (devohmycode/Taskbar-Hub#2) with its task ticked by the script and no manual edit of TASKS.md. Not met: a fresh install from the marketplace, which serves main and cannot hold docflow before these pull requests are merged; one task was run on Taskbar Hub instead of a sprint, by the user's choice; the token check of PRD § 11 criterion 7 is only partly met (see SPECS § 10).*

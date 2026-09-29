@@ -8,6 +8,7 @@ Below, `DOCFLOW` is `node "${CLAUDE_PLUGIN_ROOT}/scripts/docflow.mjs"`. The scri
 the mechanics — lock, branch, worktree, checks, ticks, commits, push, pull request — and a
 guard refuses, during the run, pushes to the default branch, `gh pr merge` and edits of the
 approved documents. You write code; you never tick `TASKS.md`, commit, push or merge yourself.
+Run `DOCFLOW` from the project's directory (the session's), never from the plugin's.
 
 ## 1. Start
 
