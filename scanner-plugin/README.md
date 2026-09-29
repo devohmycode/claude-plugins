@@ -70,7 +70,7 @@ Nothing is created without that answer. From the script: `scanner.mjs repo plan`
 | Command                                                      | Role                                                                                      |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `/scanner:check`                                             | Checks profiles, overlays and config against the repository. Run it before scanning.      |
-| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep] [--mode …]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches. `--mode`: see [Scan modes](#scan-modes). `--model`, `--effort`: see [Agents](#agents-model-and-effort). |
+| `/scanner:scan <type> [--scope full\|diff\|<path>] [--deep] [--mode …]` | One scan. `diff`: files changed since `diffBase`. `--deep` doubles the number of batches (see `batchBytes`). `--mode`: see [Scan modes](#scan-modes). `--model`, `--effort`: see [Agents](#agents-model-and-effort). |
 | `/scanner:scan-all [--scope …] [--mode …]`                   | Check, then one scan per type, sequentially.                                              |
 | `/scanner:remediate <run> <selection>`                       | Fixes the selected findings on one new fix branch, in a worktree; commits, never pushes.  |
 | `/scanner:guard [status\|off]`                               | Shows or lifts the guard (after an interrupted scan).                                     |
@@ -313,7 +313,12 @@ See `examples/config.json`. Keys:
   even if the profile excludes them;
 - `investigators` (`["claude"]`), `external.<engine>.model` / `.effort`,
   `externalTimeoutMinutes` (30): see [External investigators](#external-investigators-agent-bridges);
-- `batches` (4), `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
+- `batches` (4) — the **most** investigation batches; `batchBytes` (80000) — the code one
+  batch should hold: a scope gets `ceil(bytes / batchBytes)` batches, up to `batches`, at least
+  one per investigator engine (`--deep` doubles both). Every agent starts with the same fixed
+  context (system prompt, the project's `CLAUDE.md`, the profile), so a small scope is not
+  split four ways; `triageBatchSize` (20) — findings per triage agent, balanced;
+- `diffBase` (for `--scope diff`), `remediationBase`, `branchPrefix`;
 - `types.<type>`: `enabled`, `model`, `effort`, `investigators`, `requireReachability` (default: `security` only),
   `exclusions.add` / `exclusions.remove`;
 - `check`: `constants` (names that must still exist in code), `libraries.present` /

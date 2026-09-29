@@ -30,6 +30,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
+  batchCount,
   AGENT_SETTINGS,
   CONFIG_FILE,
   MODES,
@@ -59,6 +60,7 @@ import {
   stateFile,
   timestamp,
   writeJson,
+  triageChunks,
 } from './lib.mjs'
 import { LANGUAGES, SUPPORTED, resolveLanguage } from './i18n.mjs'
 import {
@@ -345,7 +347,22 @@ function cmdPrepare() {
   const files = all.filter((f) => !matchGlob(f, profile.exclusions))
   if (!files.length) fail(t('noFileInScope', { scope }))
 
-  const batches = splitIntoBatches(files, (config.batches ?? 4) * (deep ? 2 : 1))
+  const totalBytes = files.reduce((sum, f) => {
+    try {
+      return sum + statSync(path.join(root, f)).size
+    } catch {
+      return sum
+    }
+  }, 0)
+  const batches = splitIntoBatches(
+    files,
+    batchCount(totalBytes, {
+      batches: config.batches ?? 4,
+      batchBytes: config.batchBytes ?? 80_000,
+      deep,
+      engines: engines.length,
+    })
+  )
   batches.forEach((b, i) => (b.engine = engines[i % engines.length]))
   const external = engines.filter((e) => e !== CLAUDE)
   const run = `${type}-${timestamp()}`
@@ -594,9 +611,9 @@ function cmdConsolidate() {
   writeJson(path.join(dir, 'rejected.json'), rejected)
 
   const triage = []
-  for (let i = 0; i < findings.length; i += 10) {
+  for (const chunk of triageChunks(findings, readConfig(root).triageBatchSize ?? 20)) {
     const id = `T${triage.length + 1}`
-    writeJson(path.join(dir, `triage-${id}.json`), findings.slice(i, i + 10))
+    writeJson(path.join(dir, `triage-${id}.json`), chunk)
     triage.push(id)
   }
   console.log(t('consolidated', { findings: findings.length, rejected: rejected.length }))
