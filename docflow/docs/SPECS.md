@@ -225,3 +225,10 @@ through `claude -p --output-format stream-json`, two runs): the agent read no do
 the task line and its referenced section came from `task show` — but it listed the
 project and opened two source files it did not change, beside the test and `package.json`.
 Partly met: documents are never loaded; neighbouring code still is.
+
+Measured again on 29 September 2026, after the implementer's rule was tightened (no listing,
+Read only for files it edits, `Grep` for a definition it uses, no reading through Bash):
+three runs on a sample project with four source files, one test and `package.json`. In each,
+the agent called `task show`, one targeted `Glob` or `Grep`, read `src/math.mjs` and
+`test/math.test.mjs` — the two files it changed — then `do check` and `do commit`: no
+document, no listing, no other file. Met.

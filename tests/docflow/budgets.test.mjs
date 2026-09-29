@@ -35,10 +35,10 @@ const TASKS = [
 const SPECS = '# big — Specifications\n\n## 1. Adder\n\nadd(a, b) returns a + b.\n\n## 2. Limits\n\ndouble(x) returns 2x.\n'
 
 /** A repository of FILES files whose four documents are approved and committed. */
-function bigProject() {
+function bigProject(name = 'big') {
   const files = { 'package.json': JSON.stringify({ name: 'big', scripts: { test: 'node -e 0' } }) }
   for (let i = 0; i < FILES; i++) files[`src/m${i % 50}/f${i}.txt`] = `${i}\n`
-  const repo = makeRepo(ws, { name: 'big', remote: true, files })
+  const repo = makeRepo(ws, { name, remote: true, files })
   const docs = { PRD: '# big — PRD\n\n## 1. Vision\n\nv\n', ARCHITECTURE: '# big — Technical design\n\n## 1. Principles\n\np\n', SPECS, TASKS }
   const state = { schema: 1, docs: {}, translations: {}, lock: null, run: null, guard: null, pending: [] }
   for (const [doc, text] of Object.entries(docs)) {
@@ -93,21 +93,29 @@ describe('SPECS § 10 budgets', () => {
       assert.equal(last.code, 0, `${args.join(' ')}\n${last.stdout}`)
       results.push([args.join(' '), ms, outputLines(last.stdout)])
     }
-    // A run: start, acceptance, commit (each measured once: they change the state).
-    const once = (args) => {
-      const t0 = performance.now()
-      const r = docflow(ws, repo, args)
-      assert.equal(r.code, 0, `${args.join(' ')}\n${r.stdout}`)
-      results.push([args.join(' '), Math.round(performance.now() - t0), outputLines(r.stdout)])
-      return r
+    // A run: start, commit, acceptance, result, abort. They change the state, so the run
+    // is played once on each of RUNS identical repositories and each verb keeps its median.
+    const runs = new Map()
+    for (let i = 0; i < RUNS; i++) {
+      const run = i === 0 ? repo : bigProject(`big-${i}`)
+      const once = (args) => {
+        const t0 = performance.now()
+        const r = docflow(ws, run, args)
+        assert.equal(r.code, 0, `${args.join(' ')}\n${r.stdout}`)
+        const verb = args.join(' ')
+        if (!runs.has(verb)) runs.set(verb, { ms: [], lines: 0 })
+        runs.get(verb).ms.push(performance.now() - t0)
+        runs.get(verb).lines = outputLines(r.stdout)
+      }
+      once(['do', 'start', 'S1'])
+      write(run, 'add.mjs', 'export default 1\n')
+      assert.equal(docflow(ws, run, ['do', 'check', 'S1-T1']).keys.CHECKS, 'pass')
+      once(['do', 'commit', 'S1-T1'])
+      once(['do', 'acceptance', 'S1'])
+      once(['do', 'result', 'S1', 'failed', 'not run in this test'])
+      once(['do', 'abort'])
     }
-    once(['do', 'start', 'S1'])
-    write(repo, 'add.mjs', 'export default 1\n')
-    assert.equal(docflow(ws, repo, ['do', 'check', 'S1-T1']).keys.CHECKS, 'pass')
-    once(['do', 'commit', 'S1-T1'])
-    once(['do', 'acceptance', 'S1'])
-    once(['do', 'result', 'S1', 'failed', 'not run in this test'])
-    once(['do', 'abort'])
+    for (const [verb, { ms, lines }] of runs) results.push([verb, Math.round(median(ms)), lines])
     for (const [verb, ms, lines] of results) t.diagnostic(`${verb}: ${ms} ms, ${lines} lines`)
     for (const [verb, ms, lines] of results) {
       assert.ok(ms < 1000, `${verb} took ${ms} ms`)

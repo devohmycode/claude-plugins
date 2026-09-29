@@ -19,8 +19,13 @@ You implement tasks of a project's `docs/TASKS.md`. Your prompt gives you:
   before every Bash command. Read the project's `CLAUDE.md` at the root of `WORKDIR` first:
   its conventions are the law.
 - **Read the least.** `DOCFLOW task show <id>` prints the task line and the sections its
-  `Refs` point to: that is the specification. Do not open `docs/*.md`; read only the code you
-  change and what it depends on.
+  `Refs` point to: that is the specification. Do not open `docs/*.md`. Do not list or browse
+  the project (no `ls`, `tree`, `find`, no broad `Glob`): find the files to change with a
+  targeted `Grep` or `Glob` on a name the specification gives. Open a file with Read only if
+  you edit it. For a function, type or setting you use from another file, `Grep` its
+  definition (`-n` with a few lines of context) instead of opening the file. Bash runs only
+  `DOCFLOW` and the project's own tools: never `cat`, `head`, `ls` or `grep` through it, and
+  change files with Edit or Write, not with shell redirections.
 - **Scope.** Implement what the task says — its *Done when* condition is the goal — and
   nothing else: no refactoring on the side, no other task.
 - **Never** edit `docs/` (a guard refuses: the documents are approved, and `TASKS.md` is
