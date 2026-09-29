@@ -489,3 +489,30 @@ export function isoDay(date = new Date()) {
     DDMMYYYY: `${p(date.getDate())}${p(date.getMonth() + 1)}${date.getFullYear()}`,
   }
 }
+
+/**
+ * How many investigation batches a scope gets: enough for `batchBytes` of code each, never
+ * more than `batches` (doubled by `--deep`), and at least one per investigator engine so
+ * that `--via` still deals batches out.
+ *
+ * Every agent starts with the same fixed context (system prompt, the project's CLAUDE.md,
+ * the profile) — tens of thousands of tokens, whatever its batch holds. Four agents for
+ * 40 KB of code paid that context four times for a few thousand tokens of code each.
+ */
+export function batchCount(totalBytes, { batches = 4, batchBytes = 80_000, deep = false, engines = 1 } = {}) {
+  const cap = batches * (deep ? 2 : 1)
+  const target = Math.max(1, batchBytes / (deep ? 2 : 1))
+  const bySize = Math.ceil(totalBytes / target)
+  return Math.max(1, Math.min(cap, Math.max(bySize, engines)))
+}
+
+/**
+ * Triage batches of at most `size` findings, balanced (15 findings with a size of 10 make
+ * two batches of 8 and 7, not 10 and 5).
+ */
+export function triageChunks(findings, size = 20) {
+  if (!findings.length) return []
+  const count = Math.ceil(findings.length / Math.max(1, size))
+  const per = Math.ceil(findings.length / count)
+  return Array.from({ length: count }, (_, i) => findings.slice(i * per, (i + 1) * per)).filter((c) => c.length)
+}
