@@ -55,7 +55,7 @@
       "name": "docflow",
       "source": "./docflow",
       "description": "From an idea to merged code through a fixed chain of linked documents — PRD, architecture, specifications, tasks and a CLAUDE.md block — each approved at a checkpoint and optionally translated section by section; then the plan is implemented task by task or sprint by sprint, on its own branch, with the project's checks, a ticked TASKS.md and a draft pull request.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "DevOhMyCode"
       },

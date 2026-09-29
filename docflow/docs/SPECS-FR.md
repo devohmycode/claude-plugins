@@ -203,3 +203,11 @@ document — la ligne de la tâche et sa section référencée venaient de `task
 il a listé le projet et ouvert deux fichiers source qu'il n'a pas modifiés, en plus du test
 et de `package.json`. Partiellement tenu : les documents ne sont jamais chargés ; le code
 voisin l'est encore.
+
+Nouvelle mesure le 29 septembre 2026, après le durcissement de la règle de l'implementer
+(aucun listing, Read réservé aux fichiers qu'il modifie, `Grep` pour une définition qu'il
+utilise, aucune lecture par Bash) : trois runs sur un projet d'exemple de quatre fichiers
+source, un test et `package.json`. À chaque fois, l'agent a appelé `task show`, un `Glob` ou
+un `Grep` ciblé, lu `src/math.mjs` et `test/math.test.mjs` — les deux fichiers qu'il a
+modifiés —, puis `do check` et `do commit` : aucun document, aucun listing, aucun autre
+fichier. Tenu.
