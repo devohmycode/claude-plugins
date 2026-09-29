@@ -77,6 +77,24 @@ describe('translate', () => {
     assert.equal(planLines(docflow(ws, repo, ['translate', 'plan']).stdout)[0].CHANGED, '')
   })
 
+  it('starts each pass without the previous target, and applies only the planned sections', () => {
+    const repo = prdRepo('overreach')
+    let [line] = planLines(docflow(ws, repo, ['translate', 'plan', 'prd']).stdout)
+    translate(repo, line.SOURCE, line.TARGET)
+    docflow(ws, repo, ['translate', 'apply', 'prd', 'fr'])
+    const whole = read(repo, line.TARGET)
+    write(repo, 'docs/PRD.md', read(repo, 'docs/PRD.md').replace('## 4. Users\n\nText', '## 4. Users\n\nOther text'))
+    ;[line] = planLines(docflow(ws, repo, ['translate', 'plan', 'prd']).stdout)
+    assert.equal(line.CHANGED, '4')
+    assert.throws(() => read(repo, line.TARGET), /ENOENT/, 'the target of the previous pass is gone')
+    // A translator that returns every section, one of them rewritten, changes only section 4.
+    write(repo, line.TARGET, whole.replace('FR Problem', 'FR Rewritten').replace(/## 4\. FR Users\n\nFR Text/, '## 4. FR Users\n\nFR Other text'))
+    assert.equal(docflow(ws, repo, ['translate', 'apply', 'prd', 'fr']).keys.UPDATED, '4')
+    const twin = read(repo, 'docs/PRD-FR.md')
+    assert.match(twin, /## 2\. FR Problem/)
+    assert.match(twin, /FR Other text/)
+  })
+
   it('reports a missing twin, and refuses an incomplete translation', () => {
     const repo = prdRepo('refuse')
     const check = docflow(ws, repo, ['check', 'prd'])

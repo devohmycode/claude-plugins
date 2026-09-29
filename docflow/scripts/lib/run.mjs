@@ -27,7 +27,11 @@ export function trackedChanges(dir) {
 
 /** Files under `paths` that are modified or untracked (e.g. documents never committed). */
 export function uncommitted(dir, paths) {
-  const out = gitMaybe(['status', '--porcelain', '--untracked-files=all', '--', ...paths], dir) ?? ''
+  // Not gitMaybe: its trim would eat the leading space of the first ` M path` line.
+  let out = ''
+  try {
+    out = git(['status', '--porcelain', '--untracked-files=all', '--', ...paths], dir)
+  } catch {}
   return out
     .split('\n')
     .filter(Boolean)

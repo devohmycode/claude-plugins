@@ -8,7 +8,7 @@ import path from 'node:path'
 import { after, describe, it } from 'node:test'
 
 import { docFingerprint } from '../../docflow/scripts/lib/docs.mjs'
-import { branchName, prBody, worktreePath } from '../../docflow/scripts/lib/run.mjs'
+import { branchName, prBody, uncommitted, worktreePath } from '../../docflow/scripts/lib/run.mjs'
 import { isManual, nextUnit, parseTasks, recordResult, setDone, setIssue } from '../../docflow/scripts/lib/tasks.mjs'
 import { docflow, ghData, git, hook, makeRepo, read, workspace, write } from './helpers.mjs'
 
@@ -222,6 +222,13 @@ describe('a task run in a worktree', () => {
 })
 
 describe('preconditions and the lock', () => {
+  it('names the uncommitted documents whole, a modified one first included', () => {
+    const repo = makeRepo(ws, { name: 'porcelain', files: { 'docs/TASKS.md': 'a\n', 'docs/TASKS-FR.md': 'b\n' } })
+    write(repo, 'docs/TASKS.md', 'a2\n')
+    write(repo, 'docs/TASKS-FR.md', 'b2\n')
+    assert.deepEqual(uncommitted(repo, ['docs']), ['docs/TASKS-FR.md', 'docs/TASKS.md'])
+  })
+
   it('refuses to start before TASKS.md is approved, or with uncommitted documents', () => {
     const repo = project('pre', { commit: false })
     const dirty = docflow(ws, repo, ['do', 'start', 'next'])
