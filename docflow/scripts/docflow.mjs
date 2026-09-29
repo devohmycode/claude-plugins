@@ -20,6 +20,7 @@
 // 2 unknown document, section, task or sprint · 3 repository missing (REPO=) ·
 // 4 gate: predecessor not approved · 5 checks failed · 75 lock held by another session.
 
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { LANGUAGES, SUPPORTED, createI18n, resolveLanguage } from './i18n.mjs'
 import { REPO_EXIT, initRepo, missingFor, plannedFiles, publishRepo, repoState } from './repo.mjs'
@@ -46,12 +47,29 @@ import {
   strings,
   unfilled,
 } from './lib/docs.mjs'
-import { defaultBranch, projectRoot } from './lib/git.mjs'
+import { currentBranch, defaultBranch, git, projectRoot } from './lib/git.mjs'
 import { layoutSummary } from './lib/layout.mjs'
 import { applyTwin, checkTwins, planTwin, writeSource } from './lib/translate.mjs'
-import { StateError, approve, markStale, readState, updateState } from './lib/state.mjs'
-import { parseTasks, progress } from './lib/tasks.mjs'
-import { readText, toPosix, writeText } from './lib/util.mjs'
+import { StateError, acquireLock, approve, markStale, readState, releaseLock, updateState } from './lib/state.mjs'
+import { isManual, nextUnit, parseTasks, progress, recordResult, setDone } from './lib/tasks.mjs'
+import {
+  branchName,
+  commitAll,
+  commitPaths,
+  editTasks,
+  openBranch,
+  prBody,
+  publish,
+  readTasks,
+  restore,
+  runChecks,
+  stagedTree,
+  subjectOf,
+  trackedChanges,
+  uncommitted,
+} from './lib/run.mjs'
+import { sessionOf } from './scope.mjs'
+import { isoDate, isoTime, readText, toPosix, writeText } from './lib/util.mjs'
 
 const EXIT = { ok: 0, problem: 1, unknown: 2, repo: REPO_EXIT, gate: 4, checks: 5, busy: 75 }
 
@@ -101,7 +119,9 @@ function fail(code, message, exit = EXIT.problem) {
 
 const { positional: [verb, ...rest], flags } = parseArgs(process.argv.slice(2))
 const root = projectRoot(process.cwd())
-const config = loadConfig(root, { language: typeof flags.lang === 'string' ? flags.lang : undefined })
+// A command's arguments win over every other level of the options (SPECS § 3).
+const argOf = (name) => (typeof flags[name] === 'string' ? flags[name] : undefined)
+const config = loadConfig(root, { language: verb === 'language' ? undefined : argOf('lang'), unit: argOf('unit'), implementer: argOf('implementer') })
 const localesDir = path.join(PLUGIN_ROOT, 'locales')
 let i18n = createI18n({ localesDir, language: config.values.language })
 let t = i18n.t
@@ -265,12 +285,27 @@ function nextStep(state, statuses, { block = blockState(root) } = {}) {
     return { command, message: t('nextResume', { unit: state.run.unit, status: state.run.status, command }) }
   }
   const tasks = readText(docPath(tasksRoot(state), 'TASKS'))
-  const current = tasks && progress(parseTasks(tasks.text)).current
-  if (current) {
+  const parsed = tasks && parseTasks(tasks.text)
+  const pending = livePending(state, parsed)
+  const unit = parsed && nextUnit(parsed, 'next', { mode: config.values.unit, skip: pending.map((p) => p.unit) })
+  if (unit) {
     const command = '/docflow:do next'
-    return { command, message: t('nextDo', { unit: current.id, title: current.title, command }), unit: current }
+    return { command, message: t('nextDo', { unit: unit.id, title: unit.title, command }), unit }
   }
+  if (pending.length) return { command: 'none', message: t('nextPending', { list: pending.map((p) => `${p.unit} ${p.pr}`).join(', ') }) }
   return { command: 'none', message: t('nextNone') }
+}
+
+/**
+ * The finished runs whose pull request is not merged yet: those whose tasks are not all
+ * ticked in the checkout's TASKS.md (a merge brings the ticks in).
+ */
+function livePending(state, parsed) {
+  if (!parsed) return state.pending ?? []
+  return (state.pending ?? []).filter((p) => {
+    const unit = nextUnit(parsed, p.unit)
+    return unit && !unit.done
+  })
 }
 
 function cmdStatus() {
@@ -285,6 +320,7 @@ function cmdStatus() {
   out('DONE', p?.done ?? 0)
   out('TOTAL', p?.total ?? 0)
   out('RUN', state.run ? `${state.run.status}:${state.run.unit}` : 'none')
+  out('PENDING', livePending(state, tasks && parseTasks(tasks.text)).map((p) => p.unit))
   const next = nextStep(state, statuses)
   out('NEXT', next.command)
   for (const p of config.problems) say(t('configProblem', { key: p.key, value: p.value, source: p.source }))
@@ -531,6 +567,327 @@ function cmdClaudeMd() {
   say(t(`claudeMd_${status}`))
 }
 
+// ─── Implementation ─────────────────────────────────────────────────────────
+
+// Null outside Claude Code: the guard then keeps its repository limit only (scope.mjs).
+const session = sessionOf()
+/** What must be committed before a run starts: the documents and the project options. */
+const DOC_PATHS = ['docs', 'CLAUDE.md', '.docflow/config.json', '.docflow/.gitignore']
+
+function requireRun(state) {
+  if (!state.run) fail('no-run', t('noRun'))
+  return state.run
+}
+
+const workdirOf = (run) => run.worktree ?? root
+
+/** Runs a git or gh step; on failure prints the command and the end of its output, exit 1. */
+function gitStep(fn) {
+  try {
+    return fn()
+  } catch (e) {
+    if (e instanceof Exit) throw e
+    out('ERROR', 'git')
+    say(t('gitFailed', { command: e.command ?? e.message }))
+    if (e.output) say(e.output)
+    throw new Exit(EXIT.problem)
+  }
+}
+
+/** The run's task (or acceptance entry) `id`, from the run's TASKS.md; exit 2 when unknown. */
+function runItem(run, id) {
+  const parsed = readTasks(workdirOf(run))
+  const item = parsed?.items.find((i) => i.id === String(id ?? '').toUpperCase().replace(/ ACCEPTANCE$/, ' acceptance'))
+  if (!item) fail('task', t('unknownTask', { id: id ?? '' }), EXIT.unknown)
+  return item
+}
+
+function printRun(run) {
+  out('UNIT', run.unit)
+  out('KIND', run.kind)
+  out('TASKS', run.tasks.filter((id) => !run.done.includes(id)))
+  out('ACCEPTANCE', run.kind === 'sprint' && !run.acceptance ? 1 : 0)
+  out('BRANCH', run.branch)
+  out('WORKDIR', toPosix(workdirOf(run)))
+  out('IMPLEMENTER', run.implementer)
+  if (run.implementer !== 'session') {
+    const agent = agentOf(config.values, 'implementer')
+    out('AGENT', agent.type)
+    out('MODEL', agent.model)
+  }
+  out('CHECKS', checksOf(config.values, root).command ?? '')
+}
+
+function takeLock(state, { takeover, force = false }) {
+  const lock = changeState((s) => acquireLock(s, session, { takeover, force }))
+  if (lock.ok) return
+  out('LOCK', lock.lock.session)
+  out('SINCE', lock.lock.since)
+  const expired = lock.reason === 'expired'
+  fail(expired ? 'lock-expired' : 'lock-busy', t(expired ? 'lockExpired' : 'lockBusy', { since: lock.lock.since, expires: lock.lock.expires }), EXIT.busy)
+}
+
+function doStart() {
+  const arg = (rest[1] ?? 'next').replace(/^s/, 'S')
+  const state = loadState()
+  if (state.run) {
+    if (!flags.resume && arg !== 'next' && arg.toUpperCase() !== state.run.unit)
+      fail('run-active', t('runActive', { unit: state.run.unit, status: state.run.status }))
+    return doResume(state)
+  }
+  if (flags.resume) fail('no-run', t('noRun'))
+  const statuses = docStatuses(root, state)
+  if (statuses.TASKS.status !== 'approved') {
+    out('GATE', 'TASKS')
+    fail('gate', t('doGate', { status: statuses.TASKS.status }), EXIT.gate)
+  }
+  const dirty = uncommitted(root, DOC_PATHS)
+  if (dirty.length && !flags['commit-docs']) {
+    out('UNCOMMITTED', dirty)
+    fail('docs-uncommitted', t('docsUncommitted', { list: dirty.slice(0, 6).join(', ') }))
+  }
+  const parsed = readTasks(root)
+  const pending = livePending(state, parsed)
+  const unit = nextUnit(parsed, arg, { mode: config.values.unit, skip: pending.map((p) => p.unit) })
+  if (!unit) fail(arg === 'next' ? 'nothing' : 'unit', arg === 'next' ? t('nothingNext') : t('unknownUnit', { unit: arg }), arg === 'next' ? EXIT.problem : EXIT.unknown)
+  if (unit.done) fail('done', t('unitDone', { unit: unit.id }))
+  const worktree = flags.worktree ? true : flags['in-place'] ? false : config.values.worktree === 'on'
+  if (!worktree && trackedChanges(root).filter((l) => !dirty.some((d) => l.endsWith(d))).length) fail('dirty', t('dirtyTree'))
+  if (dirty.length) {
+    const sha = gitStep(() => commitPaths(root, DOC_PATHS, 'docs: docflow documents'))
+    out('DOCS_COMMIT', sha ?? '')
+  }
+  takeLock(state, { takeover: !!flags.takeover })
+  const base = defaultBranch(root)
+  const stacked = pending.at(-1) ?? null
+  const branch = branchName(config.values.branch_prefix, unit.id, unit.title)
+  const origin = currentBranch(root)
+  let opened
+  try {
+    opened = openBranch(root, { branch, startPoint: stacked?.branch ?? base, worktree, unit: unit.id })
+  } catch (e) {
+    changeState((s) => void releaseLock(s, session))
+    gitStep(() => {
+      throw e
+    })
+  }
+  const sprintTasks = unit.kind === 'sprint' ? unit.sprint.tasks : unit.tasks
+  const run = {
+    unit: unit.id,
+    kind: unit.kind,
+    title: unit.title,
+    tasks: sprintTasks.map((x) => x.id),
+    done: sprintTasks.filter((x) => x.done).map((x) => x.id),
+    status: 'running',
+    base,
+    branch,
+    worktree: opened.worktree,
+    origin_branch: origin,
+    implementer: config.values.implementer,
+    current: null,
+    passed: null,
+    failed: null,
+    acceptance: null,
+    stacked_on: stacked ? { unit: stacked.unit, pr: stacked.pr, branch: stacked.branch } : null,
+    started: isoTime(),
+  }
+  changeState((s) => {
+    s.run = run
+    s.guard = { session, root, worktree: opened.worktree, base }
+  })
+  printRun(run)
+  say(t('runStarted', { unit: unit.id, title: unit.title, branch }))
+  if (stacked) say(t('runStacked', { unit: stacked.unit, pr: stacked.pr }))
+}
+
+function doResume(state) {
+  const run = state.run
+  // A failed run was left by its session: another one may take it over.
+  takeLock(state, { takeover: !!flags.takeover, force: run.status === 'failed' })
+  if (run.worktree && !existsSync(run.worktree)) fail('worktree', t('runWorktreeMissing', { dir: toPosix(run.worktree) }))
+  if (!run.worktree && currentBranch(root) !== run.branch) {
+    if (trackedChanges(root).length) fail('dirty', t('dirtyTree'))
+    gitStep(() => git(['checkout', '-q', run.branch], root))
+  }
+  const parsed = readTasks(workdirOf(run))
+  const done = run.tasks.filter((id) => parsed.items.find((i) => i.id === id)?.done)
+  const updated = changeState((s) => {
+    Object.assign(s.run, { status: 'running', failed: null, done })
+    s.guard = { session, root, worktree: run.worktree, base: run.base }
+    return s.run
+  })
+  printRun(updated)
+  say(t('runResumed', { unit: run.unit, n: run.tasks.length - done.length }))
+}
+
+function cmdTaskShow() {
+  if (rest[0] !== 'show') fail('usage', t('usage', { syntax: 'task show <id>' }), EXIT.unknown)
+  const state = loadState()
+  const dir = state.run ? workdirOf(state.run) : root
+  const parsed = readTasks(dir)
+  const id = String(rest[1] ?? '').toUpperCase().replace(/ ACCEPTANCE$/, ' acceptance')
+  const item = parsed?.items.find((i) => i.id === id)
+  if (!item) fail('task', t('unknownTask', { id: rest[1] ?? '' }), EXIT.unknown)
+  const parts = [parsed.lines.slice(item.line, item.end + 1).join('\n')]
+  const texts = {}
+  for (const ref of item.refs) {
+    const [doc, n] = ref.split(' § ')
+    texts[doc] ??= readText(docPath(dir, doc))?.text ?? null
+    const text = texts[doc] && section(texts[doc], n)
+    parts.push(text ? `<!-- ${ref} -->\n${text}` : `# ${t('taskRefMissing', { ref })}`)
+  }
+  process.stdout.write(`${parts.join('\n\n')}\n`)
+  if (state.run?.tasks.includes(item.id)) changeState((s) => void (s.run.current = item.id))
+}
+
+function doCheck() {
+  const state = loadState()
+  const run = requireRun(state)
+  const item = runItem(run, rest[1] ?? run.current)
+  const checks = checksOf(config.values, root)
+  if (!checks.command) {
+    out('CHECKS', 'unset')
+    fail('checks-unset', t('checksUnset'))
+  }
+  const dir = workdirOf(run)
+  const tree = gitStep(() => stagedTree(dir))
+  const result = runChecks(root, dir, checks.command, item.id.replace(' ', '-'))
+  if (result.pass) {
+    changeState((s) => {
+      s.run.passed = { id: item.id, tree }
+      s.run.current = item.id
+    })
+    out('CHECKS', 'pass')
+    return say(t('checksPassed', { command: checks.command, id: item.id }))
+  }
+  changeState((s) => {
+    Object.assign(s.run, { status: 'failed', failed: { id: item.id, reason: 'checks' }, current: item.id })
+  })
+  out('CHECKS', 'fail')
+  out('LOG', toPosix(path.relative(root, result.log)))
+  say(t('checksFailed', { command: checks.command, id: item.id, n: 60 }))
+  say(result.tail)
+  throw new Exit(EXIT.checks)
+}
+
+function doCommit() {
+  const state = loadState()
+  const run = requireRun(state)
+  const item = runItem(run, rest[1] ?? run.current)
+  if (!run.tasks.includes(item.id)) fail('not-in-run', t('notInRun', { id: item.id, unit: run.unit }))
+  if (run.passed?.id !== item.id) fail('not-checked', t('notChecked', { id: item.id }))
+  const dir = workdirOf(run)
+  if (gitStep(() => stagedTree(dir)) !== run.passed.tree) fail('changed', t('changedSinceCheck', { id: item.id }))
+  editTasks(dir, (text) => setDone(text, item.id, true))
+  const sha = gitStep(() => commitAll(dir, subjectOf(item.id, item.title), item.refs.length ? `Refs: ${item.refs.join(', ')}.` : null))
+  const updated = changeState((s) => {
+    if (!s.run.done.includes(item.id)) s.run.done.push(item.id)
+    Object.assign(s.run, { passed: null, current: null, failed: null, status: 'running' })
+    return s.run
+  })
+  out('COMMIT', sha)
+  out('TICKED', item.id)
+  out('REMAINING', updated.tasks.filter((id) => !updated.done.includes(id)))
+  say(t('committed', { id: item.id, sha }))
+}
+
+function doAcceptance() {
+  const state = loadState()
+  const run = requireRun(state)
+  const sprint = String(rest[1] ?? run.unit).toUpperCase()
+  const item = readTasks(workdirOf(run))?.items.find((i) => i.id === `${sprint} acceptance`)
+  if (!item) fail('acceptance', t('acceptanceNone', { sprint }), EXIT.unknown)
+  out('TEST', item.text)
+  out('MANUAL', isManual(item.text) ? 1 : 0)
+  out('WORKDIR', toPosix(workdirOf(run)))
+  const agent = agentOf(config.values, 'acceptance')
+  out('AGENT', agent.type)
+  out('MODEL', agent.model)
+}
+
+function doResult() {
+  const state = loadState()
+  const run = requireRun(state)
+  const [, sprintArg, status, ...words] = rest
+  const sprint = String(sprintArg ?? '').toUpperCase()
+  const evidence = words.join(' ').trim()
+  if (!['passed', 'failed'].includes(status) || !evidence)
+    fail('usage', t('usage', { syntax: 'do result <sprint> passed|failed "<evidence>"' }), EXIT.unknown)
+  const dir = workdirOf(run)
+  const changed = editTasks(dir, (text) => recordResult(text, sprint, status, evidence, isoDate()))
+  if (!changed.length) fail('acceptance', t('acceptanceNone', { sprint }), EXIT.unknown)
+  const sha = gitStep(() => commitAll(dir, `${sprint} acceptance: ${status}`, evidence))
+  changeState((s) => void (s.run.acceptance = { status, evidence }))
+  out('RECORDED', sprint)
+  out('TICKED', status === 'passed' ? 1 : 0)
+  out('COMMIT', sha)
+  say(t('resultRecorded', { sprint, status }))
+}
+
+function doFinish() {
+  const state = loadState()
+  const run = requireRun(state)
+  const remaining = run.tasks.filter((id) => !run.done.includes(id))
+  if (remaining.length) fail('unfinished', t('unfinished', { list: remaining.join(', ') }))
+  if (run.kind === 'sprint' && !run.acceptance) fail('no-acceptance', t('noAcceptanceResult', { sprint: run.unit }))
+  requireRepo({ commit: true, remote: true })
+  const dir = workdirOf(run)
+  const parsed = readTasks(dir)
+  const items = run.tasks.map((id) => parsed.items.find((i) => i.id === id)).filter(Boolean)
+  const acceptance = parsed.items.find((i) => i.id === `${run.unit} acceptance`)
+  const closes = [...items.filter((i) => i.done && i.issue), ...(acceptance?.done && acceptance.issue ? [acceptance] : [])].map((i) => i.issue)
+  changeState((s) => void (s.run.status = 'finishing'))
+  const checks = checksOf(config.values, root).command
+  const body = prBody({ unit: run, tasks: items, checks, acceptance: run.acceptance, closes, stackedOn: run.stacked_on?.pr ?? null })
+  const url = gitStep(() => publish(root, dir, { branch: run.branch, base: run.base, title: `${run.unit}: ${run.title}`, body }))
+  const restored = gitStep(() => restore(root, run))
+  const after = changeState((s) => {
+    s.pending = [...(s.pending ?? []).filter((p) => p.unit !== run.unit), { unit: run.unit, branch: run.branch, pr: url }]
+    s.run = null
+    s.guard = null
+    releaseLock(s, session, { force: true })
+    return s
+  })
+  const block = refreshBlock(after)
+  out('PR', url)
+  out('RESTORED', restored.restored ?? '')
+  if (restored.removed) out('WORKTREE_REMOVED', toPosix(restored.removed))
+  out('CLAUDE_MD', block.status)
+  say(t('finished', { unit: run.unit, url }))
+}
+
+function doFail() {
+  const state = loadState()
+  const run = requireRun(state)
+  const item = runItem(run, rest[1] ?? run.current)
+  const reason = rest.slice(2).join(' ').trim() || 'reported'
+  changeState((s) => void Object.assign(s.run, { status: 'failed', failed: { id: item.id, reason } }))
+  out('FAILED', item.id)
+  say(t('failedRecorded', { id: item.id, command: '/docflow:do --resume' }))
+}
+
+function doAbort() {
+  const state = loadState()
+  const run = requireRun(state)
+  const restored = gitStep(() => restore(root, run))
+  changeState((s) => {
+    s.run = null
+    s.guard = null
+    releaseLock(s, session, { force: true })
+  })
+  out('ABORTED', run.unit)
+  out('BRANCH', run.branch)
+  out('RESTORED', restored.restored ?? '')
+  say(t('aborted', { unit: run.unit, branch: run.branch }))
+}
+
+function cmdDo() {
+  const sub = rest[0]
+  const verbs = { start: doStart, check: doCheck, commit: doCommit, acceptance: doAcceptance, result: doResult, finish: doFinish, fail: doFail, abort: doAbort }
+  if (!verbs[sub]) fail('usage', t('usage', { syntax: `do ${Object.keys(verbs).join('|')}` }), EXIT.unknown)
+  verbs[sub]()
+}
+
 // ─── Dispatch ───────────────────────────────────────────────────────────────
 
 const VERBS = {
@@ -542,6 +899,8 @@ const VERBS = {
   approve: cmdApprove,
   'claude-md': cmdClaudeMd,
   translate: cmdTranslate,
+  task: cmdTaskShow,
+  do: cmdDo,
   language: cmdLanguage,
   config: cmdConfig,
   repo: cmdRepo,
@@ -550,6 +909,8 @@ const VERBS = {
 /** What each verb needs of the repository (SPECS § 5, exit 3). */
 const NEEDS_REPO = {
   stage: () => ({}),
+  // `do finish` checks its remote itself, after the unit is known to be complete.
+  do: (sub) => ({ commit: true, remote: sub === 'start' }),
 }
 
 try {

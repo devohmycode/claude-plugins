@@ -89,24 +89,25 @@ acceptance test and is validated only when it passes.
 
 ## S4 — Implementation engine
 
-- [ ] **S4-T1** `lib/tasks.mjs`: parser, `next` unit, tick in twins, results,
+- [x] **S4-T1** `lib/tasks.mjs`: parser, `next` unit, tick in twins, results,
   issue numbers. Refs: SPECS § 6. *Done when* golden-file tests pass.
-- [ ] **S4-T2** `lib/run.mjs`: base branch, branch naming, worktree or in
+- [x] **S4-T2** `lib/run.mjs`: base branch, branch naming, worktree or in
   place, checks with log tail, commit, push, draft pull request, restore.
   Refs: SPECS § 8, ARCHITECTURE § 5.3.
-- [ ] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
+- [x] **S4-T3** Verbs `task show`, `do start|check|commit|acceptance|result|finish`
   and `--resume`. Refs: SPECS § 5.
-- [ ] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
+- [x] **S4-T4** `/docflow:do` command for `session`, `task` and `sprint`
   implementers; `implementer` and `acceptance` agents. Refs: PRD § 6.4.
-- [ ] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
+- [x] **S4-T5** Hooks: guard (`PreToolUse`) and completeness (`Stop`,
   `SubagentStop`) scoped with `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
-- [ ] **S4 acceptance** — On a sample project with a two-task sprint:
+- [x] **S4 acceptance** — On a sample project with a two-task sprint:
   `/docflow:do next` implements the sprint on `docflow/S1-…`, runs the checks,
   ticks both tasks and the acceptance in `TASKS.md` and its twin, opens a draft
   pull request; `main` is unchanged; during the run `git push origin main` and
   `gh pr merge` are refused; a forced check failure stops the run and
   `--resume` completes it.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample Node project with a two-task sprint, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:do next with checks forced to fail stopped at S1-T1 (RUN=failed:S1, branch kept); in the same session git push origin main and gh pr merge 1 were refused by the hook; /docflow:do --resume in a new session implemented both tasks on docflow/S1-adding, ticked them and the acceptance in TASKS.md and TASKS-FR.md, and opened a draft pull request against main; main and origin/main unchanged.*
 
 ## S5 — Issues mirror
 

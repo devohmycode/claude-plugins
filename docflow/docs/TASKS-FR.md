@@ -96,26 +96,27 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S4 — Moteur de mise en œuvre
 
-- [ ] **S4-T1** `lib/tasks.mjs` : analyseur, unité `next`, coche dans les
+- [x] **S4-T1** `lib/tasks.mjs` : analyseur, unité `next`, coche dans les
   jumeaux, résultats, numéros d'issue. Refs: SPECS § 6. *Done when* les tests
   golden-file passent.
-- [ ] **S4-T2** `lib/run.mjs` : branche de base, nommage de branche, worktree
+- [x] **S4-T2** `lib/run.mjs` : branche de base, nommage de branche, worktree
   ou sur place, checks avec fin de log, commit, push, draft pull request,
   restauration. Refs: SPECS § 8, ARCHITECTURE § 5.3.
-- [ ] **S4-T3** Verbes `task show`, `do start|check|commit|acceptance|result|finish`
+- [x] **S4-T3** Verbes `task show`, `do start|check|commit|acceptance|result|finish`
   et `--resume`. Refs: SPECS § 5.
-- [ ] **S4-T4** Commande `/docflow:do` pour les implémenteurs `session`,
+- [x] **S4-T4** Commande `/docflow:do` pour les implémenteurs `session`,
   `task` et `sprint` ; agents `implementer` et `acceptance`. Refs: PRD § 6.4.
-- [ ] **S4-T5** Hooks : garde (`PreToolUse`) et complétude (`Stop`,
+- [x] **S4-T5** Hooks : garde (`PreToolUse`) et complétude (`Stop`,
   `SubagentStop`) délimités avec `scope.mjs`. Refs: SPECS § 8, ARCHITECTURE § 7.
 
-- [ ] **S4 acceptance** — Sur un projet d'exemple avec un sprint de deux
+- [x] **S4 acceptance** — Sur un projet d'exemple avec un sprint de deux
   tâches : `/docflow:do next` met en œuvre le sprint sur `docflow/S1-…`,
   exécute les checks, coche les deux tâches et l'acceptation dans
   `TASKS.md` et son jumeau, ouvre une draft pull request ; `main` reste
   inchangée ; pendant l'exécution, `git push origin main` et `gh pr merge`
   sont refusés ; un échec de check forcé arrête l'exécution et `--resume`
   la termine.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample Node project with a two-task sprint, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:do next with checks forced to fail stopped at S1-T1 (RUN=failed:S1, branch kept); in the same session git push origin main and gh pr merge 1 were refused by the hook; /docflow:do --resume in a new session implemented both tasks on docflow/S1-adding, ticked them and the acceptance in TASKS.md and TASKS-FR.md, and opened a draft pull request against main; main and origin/main unchanged.*
 
 ## S5 — Miroir des issues
 

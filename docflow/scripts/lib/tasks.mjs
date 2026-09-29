@@ -110,6 +110,84 @@ export function parseTasks(text) {
   return { sprints, items, lines }
 }
 
+// ─── Units ──────────────────────────────────────────────────────────────────
+
+/**
+ * The unit a run takes (SPECS § 6): `next` — the first unticked task (`task` mode) or the
+ * first sprint with an unticked task or acceptance (`sprint` mode) — or a named sprint
+ * (`S2`) or task (`S2-T3`). Units listed in `skip` (pending pull requests) are passed over
+ * by `next`. Returns `{ kind, id, title, sprint, tasks, acceptance, done }`, or null.
+ */
+export function nextUnit(parsed, arg = 'next', { mode = 'sprint', skip = [] } = {}) {
+  const sprintUnit = (s) => ({
+    kind: 'sprint',
+    id: s.id,
+    title: s.title,
+    sprint: s,
+    tasks: s.tasks.filter((t) => !t.done),
+    acceptance: s.acceptance,
+    done: !s.tasks.some((t) => !t.done) && (!s.acceptance || s.acceptance.done),
+  })
+  const taskUnit = (t) => {
+    const s = parsed.sprints.find((x) => x.id === t.sprint)
+    return { kind: 'task', id: t.id, title: t.title, sprint: s, tasks: t.done ? [] : [t], acceptance: null, done: t.done }
+  }
+  if (/^S\d+$/i.test(arg)) {
+    const s = parsed.sprints.find((x) => x.id === arg.toUpperCase())
+    return s ? sprintUnit(s) : null
+  }
+  if (/^S\d+-T\d+$/i.test(arg)) {
+    const t = parsed.items.find((x) => x.kind === 'task' && x.id === arg.toUpperCase())
+    return t ? taskUnit(t) : null
+  }
+  if (arg !== 'next') return null
+  const skipped = (id) => skip.includes(id)
+  if (mode === 'task') {
+    const t = parsed.items.find((x) => x.kind === 'task' && !x.done && !skipped(x.id) && !skipped(x.sprint))
+    return t ? taskUnit(t) : null
+  }
+  const s = parsed.sprints.find((x) => !skipped(x.id) && !sprintUnit(x).done)
+  return s ? sprintUnit(s) : null
+}
+
+/** Whether a text of a manual acceptance test asks for a person. */
+export const isManual = (text) => /\((manual)\)|\bmanual(ly)?\b|\bby hand\b/i.test(String(text))
+
+// ─── Edits ──────────────────────────────────────────────────────────────────
+
+const bold = (id) => `**${id}**`
+
+function withItem(text, id, fn) {
+  const parsed = parseTasks(text)
+  const item = parsed.items.find((i) => i.id === id)
+  if (!item) return null
+  const lines = [...parsed.lines]
+  fn(lines, item)
+  return lines.join('\n')
+}
+
+/** Ticks (`done`) or unticks a task or an acceptance entry; null when the id is absent. */
+export const setDone = (text, id, done) =>
+  withItem(text, id, (lines, item) => {
+    lines[item.line] = lines[item.line].replace(/^- \[[ xX]\]/, done ? '- [x]' : '- [ ]')
+  })
+
+/** Writes (or replaces) the result line under a sprint's acceptance, ticked only on success. */
+export const recordResult = (text, sprint, status, evidence, date) =>
+  withItem(text, `${sprint} acceptance`, (lines, item) => {
+    const line = `  *Result (${date}): ${status} — ${String(evidence).trim().replace(/[.\s]+$/, '').replace(/\s*\n\s*/g, ' ')}.*`
+    if (item.result) lines[item.result.line] = line
+    else lines.splice(item.end + 1, 0, line)
+    lines[item.line] = lines[item.line].replace(/^- \[[ xX]\]/, status === 'passed' ? '- [x]' : '- [ ]')
+  })
+
+/** Writes the issue number after the id: `**S2-T3** (#42)`. */
+export const setIssue = (text, id, number) =>
+  withItem(text, id, (lines, item) => {
+    const b = bold(id)
+    lines[item.line] = lines[item.line].replace(new RegExp(`${b.replace(/[*]/g, '\\*')}(?: \\(#\\d+\\))?`), `${b} (#${number})`)
+  })
+
 /** Counts for the status: tasks done and total, sprints validated, the current sprint. */
 export function progress(parsed) {
   const tasks = parsed.items.filter((i) => i.kind === 'task')
