@@ -120,19 +120,20 @@ d'acceptation et n'est validé que s'il réussit.
 
 ## S5 — Miroir des issues
 
-- [ ] **S5-T1** `lib/issues.mjs` et `issues push` : créer, mettre à jour, ne
+- [x] **S5-T1** `lib/issues.mjs` et `issues push` : créer, mettre à jour, ne
   jamais dupliquer ; commentaire de clé de suivi. Refs: SPECS § 8, PRD § 6.8.
-- [ ] **S5-T2** Numéros d'issue dans `TASKS.md` ; `Closes #` dans les draft
+- [x] **S5-T2** Numéros d'issue dans `TASKS.md` ; `Closes #` dans les draft
   pull requests. Refs: PRD § 6.8 (S-2).
-- [ ] **S5-T3** `issues pull` et `--apply`. Refs: PRD § 6.8 (S-3).
-- [ ] **S5-T4** Commande `/docflow:issues` avec les checks du dépôt et de
+- [x] **S5-T3** `issues pull` et `--apply`. Refs: PRD § 6.8 (S-3).
+- [x] **S5-T4** Commande `/docflow:issues` avec les checks du dépôt et de
   GitHub. Refs: PRD § 6.7 (M-2).
 
-- [ ] **S5 acceptance** — Avec `issues: mirror`, lancer `/docflow:issues push`
+- [x] **S5 acceptance** — Avec `issues: mirror`, lancer `/docflow:issues push`
   deux fois ne crée chaque issue qu'une fois ; la détection de clé façon
   `/tracker:open` les retrouve ; la draft pull request d'un sprint ferme les
   issues de ses tâches quand elle est fusionnée à la main ; une issue fermée
   à la main est signalée par `/docflow:issues pull`.
+  *Result (2026-09-28): passed — claude -p --plugin-dir docflow (sonnet) on a sample project with issues mirror, a French twin of TASKS.md, a bare origin and a fake gh: /docflow:issues push created five issues (#1 to #5: two sprints, their acceptance tests labelled acceptance) and wrote their numbers in TASKS.md and TASKS-FR.md; a second push created nothing (UNCHANGED=5); the tracker plugin keysInBody read id:docflow-<id> on each of them; the S1 run opened a draft pull request listing Closes #1, #2 and #3 and not #4; after S1 was merged by hand and its issues closed, #4 closed by hand was the only one /docflow:issues pull reported, and the command asked before applying.*
 
 ## S6 — Documentation et mise en pratique
 
