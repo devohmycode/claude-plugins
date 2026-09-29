@@ -182,7 +182,7 @@ Set in `/config` (`userConfig`), overridable per project in
 | `unit` | `task`, `sprint` | `sprint` |
 | `implementer` | `task`, `sprint`, `session` | `session` |
 | `issues` | `off`, `mirror` | `off` |
-| `worktree` | `on`, `off` | `off` |
+| `worktree` | `true`, `false` | `false` |
 | `checks` | shell command | detected from the project (`cargo`, `npm`, `pytest`…) |
 | `branch_prefix` | string | `docflow/` |
 | `<stage>_model`, `<stage>_effort` | per stage: `writer`, `translator`, `implementer`, `acceptance` | `writer` inherit · `translator` haiku · `implementer` inherit · `acceptance` sonnet |

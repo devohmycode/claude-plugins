@@ -9,7 +9,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { userOption } from '../i18n.mjs'
+import { parseBooleanOption, userOption } from '../i18n.mjs'
 import { ensureDocflowDir } from './state.mjs'
 import { readJson, writeAtomic } from './util.mjs'
 
@@ -46,7 +46,14 @@ export const OPTIONS = {
   doc_languages: { parse: languageList, default: [] },
   unit: { parse: oneOf(['task', 'sprint']), default: 'sprint' },
   implementer: { parse: oneOf(['task', 'sprint', 'session']), default: 'session' },
-  worktree: { parse: oneOf(['on', 'off']), default: 'off' },
+  // A boolean row of /config since 0.2; `on`/`off` still read (older settings, project files).
+  worktree: {
+    parse: (v) => {
+      const on = parseBooleanOption(v)
+      return on === undefined ? undefined : on ? 'on' : 'off'
+    },
+    default: 'off',
+  },
   issues: { parse: oneOf(['off', 'mirror']), default: 'off' },
   checks: { parse: text, default: '' },
   branch_prefix: { parse: (v) => (typeof v === 'string' && /^[\w./-]*\/$/.test(v.trim()) ? v.trim() : undefined), default: 'docflow/' },

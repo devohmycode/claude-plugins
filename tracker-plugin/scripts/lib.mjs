@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PRIORITIES, SEVERITIES, keyComment } from './findings.mjs'
-import { createI18n, userOption } from './i18n.mjs'
+import { createI18n, parseBooleanOption, userOption } from './i18n.mjs'
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const STATE_DIR = '.tracker'
@@ -229,7 +229,7 @@ export function i18nFor(configOrLanguage) {
 /** Whether a batch gets a worktree: `batch.worktree`, the Batch worktree row of /config, true. */
 export function batchWorktree(config) {
   if (typeof config.batch.worktree === 'boolean') return config.batch.worktree
-  return String(userOption(PLUGIN_ROOT, 'batch_worktree') ?? 'on').trim().toLowerCase() !== 'off'
+  return parseBooleanOption(userOption(PLUGIN_ROOT, 'batch_worktree')) ?? true
 }
 
 /** The /config row of a role's setting: `fixer_model`, `triager_effort`… */

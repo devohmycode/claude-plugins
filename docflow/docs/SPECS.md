@@ -53,7 +53,7 @@ Precedence: command argument > `.docflow/config.json` > `/config`
 | `doc_languages` | string | comma-separated subset of `fr,es,de`, or empty | empty |
 | `unit` | string, options | `task`, `sprint` | `sprint` |
 | `implementer` | string, options | `task`, `sprint`, `session` | `session` |
-| `worktree` | string, options | `on`, `off` | `off` |
+| `worktree` | boolean (`on`/`off` still read) | `true`, `false` | `false` |
 | `issues` | string, options | `off`, `mirror` | `off` |
 | `checks` | string | shell command, or empty to detect | empty |
 | `branch_prefix` | string | text ending with `/` | `docflow/` |

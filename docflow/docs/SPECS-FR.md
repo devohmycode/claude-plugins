@@ -44,7 +44,7 @@ Priorité : argument de commande > `.docflow/config.json` > `/config` (`userConf
 | `doc_languages` | string | sous-ensemble séparé par des virgules de `fr,es,de`, ou vide | vide |
 | `unit` | string, options | `task`, `sprint` | `sprint` |
 | `implementer` | string, options | `task`, `sprint`, `session` | `session` |
-| `worktree` | string, options | `on`, `off` | `off` |
+| `worktree` | booléen (`on`/`off` restent lus) | `true`, `false` | `false` |
 | `issues` | string, options | `off`, `mirror` | `off` |
 | `checks` | string | commande shell, ou vide pour détecter | vide |
 | `branch_prefix` | string | texte se terminant par `/` | `docflow/` |

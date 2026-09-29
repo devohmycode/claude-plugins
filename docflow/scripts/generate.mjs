@@ -59,12 +59,13 @@ const ROWS = {
     ['task', 'sprint', 'session'],
     'session'
   ),
-  worktree: choice(
-    'Worktree',
-    'on: each run gets its own worktree next to the repository, your checkout does not move. off: the branch is created in your checkout (tracked files clean), which goes back to its branch after the pull request.',
-    ['on', 'off'],
-    'off'
-  ),
+  worktree: {
+    type: 'boolean',
+    title: 'Worktree',
+    description:
+      'true: each run gets its own worktree next to the repository, your checkout does not move. false: the branch is created in your checkout (tracked files clean), which goes back to its branch after the pull request.',
+    default: false,
+  },
   issues: choice(
     'GitHub issues',
     'mirror: /docflow:issues push mirrors each unticked task as a GitHub issue (deduplicated, readable by the tracker plugin) and pull requests close them. off: TASKS.md only.',
